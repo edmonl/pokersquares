@@ -366,9 +366,8 @@ public class PokerSquares {
 
         System.out.println("\n\nTournament evaluation demo:");
         final ArrayList<PokerSquaresPlayer> players = new ArrayList<>();
-        players.add(new RandomPlayer());
-        players.add(new GreedyMCPlayer(0));
-        players.add(new GreedyMCPlayer(2));
+        players.add(new RandomPlayer()); // baseline
+        players.add(new GreedyMCPlayer(2)); // current rival
         final ArrayList<PokerSquaresPointSystem> systems = new ArrayList<>();
         systems.add(PokerSquaresPointSystem.getAmericanPointSystem());
         PokerSquares.playTournament(players, systems, 5, System.currentTimeMillis());
