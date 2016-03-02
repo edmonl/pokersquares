@@ -1,36 +1,38 @@
+
 import java.util.Collections;
 import java.util.Stack;
 
 /**
- * RandomPlayer - a simple example implementation of the player interface for PokerSquares that 
- * makes random placements.
- * Author: Todd W. Neller
+ * RandomPlayer - a simple example implementation of the player interface for
+ * PokerSquares that makes random placements. Author: Todd W. Neller
  */
 public class RandomPlayer implements PokerSquaresPlayer {
 
     /**
-     * a stack of all unchosen plays represented as row-major indices. Row-major indices: play (r, c) is recorded as a single integer r * SIZE + c.
-     * (See <a href="http://en.wikipedia.org/wiki/Row-major_order">http://en.wikipedia.org/wiki/Row-major_order</a>.)
+     * a stack of all unchosen plays represented as row-major indices. Row-major
+     * indices: play (r, c) is recorded as a single integer r * SIZE + c. (See
+     * <a href="http://en.wikipedia.org/wiki/Row-major_order">http://en.wikipedia.org/wiki/Row-major_order</a>.)
      */
-    private Stack<Integer> plays = new Stack<Integer>(); 
-    
+    private Stack<Integer> plays = new Stack<Integer>();
+
     /* (non-Javadoc)
      * @see PokerSquaresPlayer#setPointSystem(PokerSquaresPointSystem, long)
      */
     @Override
     public void setPointSystem(PokerSquaresPointSystem system, long millis) {
-        // The RandomPlayer cares about as much about the score system as a honey badger.   
+        // The RandomPlayer cares about as much about the score system as a honey badger.
     }
-    
+
     /* (non-Javadoc)
      * @see PokerSquaresPlayer#init()
      */
     @Override
     public void init() { // Create a stack of a random permutation of 25 play positions (0-24) for random plays
         plays.clear();
-        for (int i = 0; i < 25; i++)
+        for (int i = 0; i < 25; i++) {
             plays.push(i);
-        Collections.shuffle(plays); 
+        }
+        Collections.shuffle(plays);
     }
 
     /* (non-Javadoc)
@@ -53,6 +55,7 @@ public class RandomPlayer implements PokerSquaresPlayer {
 
     /**
      * Demonstrate RandomPlayer play with Ameritish point system.
+     *
      * @param args (not used)
      */
     public static void main(String[] args) {
