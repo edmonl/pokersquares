@@ -67,18 +67,12 @@ final class DeckTracker implements Iterable<Card> {
         return n;
     }
 
-    public List<Card> shuffle() {
+    public List<Card> getCards() {
         final List<Card> deck = new ArrayList<>(numberOfCards);
         for (int id = 0; id < bookkeepingByCardId.length; ++id) {
             if (bookkeepingByCardId[id]) {
                 deck.add(Card.getCard(id));
             }
-        }
-        for (int i = deck.size() - 1; i > 0; --i) {
-            final int n = (int) Math.floor(Math.random() * (i + 1));
-            final Card tmpi = deck.get(i);
-            deck.set(i, deck.get(n));
-            deck.set(n, tmpi);
         }
         return deck;
     }
