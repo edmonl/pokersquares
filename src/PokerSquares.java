@@ -240,7 +240,9 @@ public class PokerSquares {
                 max = scores[i];
             }
             System.out.println(String.format("Score of play %d: %d", i + 1, score));
-            System.out.println();
+            if (verbose) {
+                System.out.println();
+            }
         }
         scoreMean /= numGames;
         double scoreStdDev = 0;
