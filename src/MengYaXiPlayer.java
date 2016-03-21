@@ -415,7 +415,6 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         final MengYaXiPlayer player = new MengYaXiPlayer();
         player.verbose = true;
         final PokerSquares game = new PokerSquares(player, PokerSquaresPointSystem.getAmericanPointSystem());
-        PokerSquares.GAME_MILLIS = 3000000;
         game.play(new Scanner(System.in));
     }
 

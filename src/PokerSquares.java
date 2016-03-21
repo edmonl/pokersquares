@@ -47,7 +47,7 @@ public class PokerSquares {
 
     public static final int SIZE = 5; // square grid size
     public static final long POINT_SYSTEM_MILLIS = 300000L; // EAAI-2016 contest maximum milliseconds for processing score table
-    public static long GAME_MILLIS = 30000L; // EAAI-2016 contest maximum milliseconds per game
+    public static final long GAME_MILLIS = 30000L; // EAAI-2016 contest maximum milliseconds per game
 
     private PokerSquaresPlayer player; // current player
     private PokerSquaresPointSystem system; // current point system
