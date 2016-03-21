@@ -281,10 +281,13 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         if (candidates.isEmpty()) {
             candidates = Collections.unmodifiableList(board.getEmptyCells());
         }
-        if (millisRemaining < 100) {
+        final int contingency = 5 * board.getNumberOfEmptyCells();
+        if (millisRemaining <= contigency) {
             millisRemaining = 0;
+        } else {
+            millisRemaining -= contigency;
         }
-        final Board.Cell winner = monteCarloGuess(card, candidates, millisRemaining / 2);
+        final Board.Cell winner = monteCarloGuess(card, candidates, (int) Math.floor(millisRemaining * (1.0 - Math.log(2.0) * 0.5 / Math.log(board.getNumberOfEmptyCells()))));
         board.putCard(card, winner.row, winner.col);
         if (verbose) {
             System.out.println(String.format("Play %s at row %d, column %d", card, winner.row + 1, winner.col + 1));
