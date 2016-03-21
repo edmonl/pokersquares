@@ -121,10 +121,10 @@ class PokerHandAnalyzer {
     private static double score(final List<Card> cards,
         final PokerSquaresPointSystem pointSystem, final DeckTracker deck) {
         if (cards.isEmpty()) {
-            return 2.2;
+            return 3.02;
         }
         if (cards.size() == 1) {
-            return 2.1;
+            return 3.01;
         }
         final PokerHand hand = PokerHand.getPokerHand(cards.toArray(new Card[POKER_HAND_SIZE]));
         final int handScore = pointSystem.getHandScore(hand);
@@ -161,12 +161,8 @@ class PokerHandAnalyzer {
         double score = vacancies;
         final int suit0 = cards.get(0).getSuit();
         final boolean flush = cards.stream().skip(0).allMatch(c -> c.getSuit() == suit0);
-        int factor = 1;
-        for (int i = 2; i <= vacancies; ++i) {
-            factor *= i;
-        }
         if (flush) {
-            score += factor * pointSystem.getHandScore(PokerHand.FLUSH)
+            score += vacancies * pointSystem.getHandScore(PokerHand.FLUSH)
                 * Math.pow((double) deck.countSuit(suit0) / deck.getNumberOfCards(), vacancies);
         }
         final boolean[] ranks = collectRanks(cards);
@@ -204,7 +200,7 @@ class PokerHandAnalyzer {
                 for (int j = 0; j < vacancies; ++j) {
                     p *= rankScores[i + j];
                 }
-                sp += p * factor;
+                sp += vacancies * p;
             }
             score += pointSystem.getHandScore(PokerHand.STRAIGHT) * sp;
             if (flush) {
