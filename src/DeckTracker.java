@@ -32,7 +32,6 @@ final class DeckTracker implements Iterable<Card> {
 
     private final boolean[] bookkeepingByCardId = new boolean[Card.NUM_CARDS]; // card id -> if the card has not been dealt
     private int numberOfCards;
-    private List<Card> deck;
 
     public DeckTracker() {
         reset();
@@ -44,6 +43,28 @@ final class DeckTracker implements Iterable<Card> {
 
     public boolean isEmpty() {
         return numberOfCards == 0;
+    }
+
+    public int countSuit(final int suit) {
+        int n = 0;
+        int i = suit * Card.NUM_RANKS;
+        final int end = i + Card.NUM_RANKS;
+        for (; i < end; ++i) {
+            if (bookkeepingByCardId[i]) {
+                ++n;
+            }
+        }
+        return n;
+    }
+
+    public int countRank(final int rank) {
+        int n = 0;
+        for (int i = rank; i < bookkeepingByCardId.length; i += Card.NUM_RANKS) {
+            if (bookkeepingByCardId[i]) {
+                ++n;
+            }
+        }
+        return n;
     }
 
     public List<Card> shuffle() {
