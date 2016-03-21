@@ -149,23 +149,23 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
                                     board.putCard(card, targetRow.index, col.index);
                                     return true;
                                 }
-                                cols = board.findCols(c -> targetRow.isEmpty(c.index) && PokerHandAnalyzer.hasStraightPotential(c, card));
-                                if (!cols.isEmpty()) {
-                                    col = Collections.max(cols, PokerHandAnalyzer.ROWCOL_COMPARATOR_IN_NUMBER_OF_CARDS);
-                                    board.putCard(card, targetRow.index, col.index);
-                                    return true;
-                                }
-                                cols = board.findCols(c
-                                    -> targetRow.isEmpty(c.index)
-                                    && c.numberOfCards == c.countRanks()
-                                    && !PokerHandAnalyzer.hasStraightPotential(c)
-                                    && !PokerHandAnalyzer.hasFlushPotential(c)
-                                );
-                                if (!cols.isEmpty()) {
-                                    col = Collections.max(cols, PokerHandAnalyzer.ROWCOL_COMPARATOR_IN_NUMBER_OF_CARDS);
-                                    board.putCard(card, targetRow.index, col.index);
-                                    return true;
-                                }
+//                                cols = board.findCols(c -> targetRow.isEmpty(c.index) && PokerHandAnalyzer.hasStraightPotential(c, card));
+//                                if (!cols.isEmpty()) {
+//                                    col = Collections.max(cols, PokerHandAnalyzer.ROWCOL_COMPARATOR_IN_NUMBER_OF_CARDS);
+//                                    board.putCard(card, targetRow.index, col.index);
+//                                    return true;
+//                                }
+//                                cols = board.findCols(c
+//                                    -> targetRow.isEmpty(c.index)
+//                                    && c.numberOfCards == c.countRanks()
+//                                    && !PokerHandAnalyzer.hasStraightPotential(c)
+//                                    && !PokerHandAnalyzer.hasFlushPotential(c)
+//                                );
+//                                if (!cols.isEmpty()) {
+//                                    col = Collections.max(cols, PokerHandAnalyzer.ROWCOL_COMPARATOR_IN_NUMBER_OF_CARDS);
+//                                    board.putCard(card, targetRow.index, col.index);
+//                                    return true;
+//                                }
                             }
                         }
                     } else {
@@ -278,25 +278,33 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
                 candidates.clear();
                 return true;
             }
-            final List<Double> qualities = new ArrayList<>(candidates.size());
-            qualities.add(max);
-            candidates.stream().forEach((c) -> {
-                if (c.quality != qualities.get(qualities.size() - 1)) {
-                    qualities.add(c.quality);
+            final double min = candidates.get(candidates.size() - 1).quality;
+            final double delta = max - min;
+            if (delta > 1e-4) {
+                final List<Double> qualities = new ArrayList<>(candidates.size());
+                qualities.add(max);
+                candidates.stream().forEach((c) -> {
+                    if (c.quality != qualities.get(qualities.size() - 1)) {
+                        qualities.add(c.quality);
+                    }
+                });
+                final Map<Double, Double> qmap = new HashMap<>();
+                final int n = qualities.size();
+                for (int i = 0; i < n; ++i) {
+                    qmap.put(qualities.get(i), 1 + (double) qualities.get(i) / delta - min / delta);
                 }
-            });
-            final Map<Double, Double> qmap = new HashMap<>();
-            final int n = qualities.size();
-            for (int i = 0; i < n; ++i) {
-                qmap.put(qualities.get(i), 2 - (double) i / (n - 1));
-            }
-            double sum = 0.0;
-            for (final Candidate c : candidates) {
-                c.quality = qmap.get(c.quality);
-                sum += c.quality;
-            }
-            for (final Candidate c : candidates) {
-                c.quality /= sum;
+                double sum = 0.0;
+                for (final Candidate c : candidates) {
+                    c.quality = qmap.get(c.quality);
+                    sum += c.quality;
+                }
+                for (final Candidate c : candidates) {
+                    c.quality /= sum;
+                }
+            } else {
+                candidates.stream().forEach((c) -> {
+                    c.quality = 1.0 / candidates.size();
+                });
             }
             return false;
         }
