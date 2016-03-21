@@ -1,9 +1,6 @@
 /.*/
-/nbproject/
 /build/
 /dist/
-/build.xml
-/manifest.mf
 
 *.class
 *.jar
