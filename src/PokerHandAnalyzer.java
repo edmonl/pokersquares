@@ -121,9 +121,9 @@ class PokerHandAnalyzer {
 //    }
     private static boolean[] collectRanks(final Board.RowCol rc) {
         final boolean[] ranks = new boolean[Card.NUM_RANKS];
-        for (final Card c : rc.getCards()) {
+        rc.getCards().stream().forEach((c) -> {
             ranks[c.getRank()] = true;
-        }
+        });
         return ranks;
     }
 
