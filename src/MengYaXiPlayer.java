@@ -31,6 +31,8 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
 
     private final class Strategy {
 
+        public boolean verbose = false;
+
         private int stage = 0;
         private final List<Candidate> candidates = new ArrayList<>();
 
@@ -82,19 +84,6 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
                     return true;
                 }
                 case 2: {
-                    if (!board.hasPlayedSuit(card.getSuit()) && board.allColsMatch(c -> PokerHandAnalyzer.hasFlushPotential(c))) {
-                        final Board.RowCol targetCol = board.findFirstCol(c -> c.isEmpty());
-                        if (targetCol == null) {
-                            break;
-                        }
-                        final List<Board.RowCol> rows = board.findRows(r -> r.countRanks() <= 1);
-                        if (rows.isEmpty()) {
-                            break;
-                        }
-                        final Board.RowCol targetRow = Collections.min(rows, PokerHandAnalyzer.ROWCOL_COMPARATOR_IN_NUMBER_OF_CARDS);
-                        board.putCard(card, targetRow.index, targetCol.index);
-                        return true;
-                    }
                     List<Board.RowCol> rows = board.findRows(r -> r.hasRank(card.getRank()));
                     if (!rows.isEmpty()) {
                         if (rows.size() == 1) {
@@ -107,10 +96,16 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
                                     && PokerHandAnalyzer.hasFlushPotential(c, card));
                                 if (cols.size() == 1) {
                                     final Board.RowCol targetCol = cols.get(0);
-                                    if ((!PokerHandAnalyzer.hasStraightPotential(targetRow) || targetRow.numberOfCards <= targetCol.numberOfCards + 1)
-                                        && board.allColsMatch(c -> c.index == targetCol.index || c.numberOfCards <= 1 || !PokerHandAnalyzer.hasStraightPotential(c, card))) {
-                                        board.putCard(card, targetRow.index, targetCol.index);
-                                        return true;
+                                    if (!PokerHandAnalyzer.hasStraightPotential(targetRow) || targetRow.numberOfCards <= targetCol.numberOfCards + 1) {
+                                        cols = board.findCols(c
+                                            -> c.index != targetCol.index
+                                            && c.numberOfCards > 1
+                                            && PokerHandAnalyzer.hasStraightPotential(c, card)
+                                        );
+                                        if (cols.stream().allMatch(c -> c.numberOfCards <= targetCol.numberOfCards + 1)) {
+                                            board.putCard(card, targetRow.index, targetCol.index);
+                                            return true;
+                                        }
                                     }
                                 } else if (cols.isEmpty()) {
                                     final Board.RowCol targetCol = board.findFirstCol(c -> c.isEmpty());
@@ -122,6 +117,19 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
                             }
                         }
                     } else {
+                        if (!board.hasPlayedSuit(card.getSuit()) && board.allColsMatch(c -> PokerHandAnalyzer.hasFlushPotential(c))) {
+                            final Board.RowCol targetCol = board.findFirstCol(c -> c.isEmpty());
+                            if (targetCol == null) {
+                                break;
+                            }
+                            rows = board.findRows(r -> r.countRanks() <= 1);
+                            if (rows.isEmpty()) {
+                                break;
+                            }
+                            final Board.RowCol targetRow = Collections.min(rows, PokerHandAnalyzer.ROWCOL_COMPARATOR_IN_NUMBER_OF_CARDS);
+                            board.putCard(card, targetRow.index, targetCol.index);
+                            return true;
+                        }
                         List<Board.RowCol> cols = board.findCols(c -> c.numberOfCards > 1 && PokerHandAnalyzer.hasStraightPotential(c, card));
                         if (cols.isEmpty()) {
                             cols = board.findCols(c -> PokerHandAnalyzer.hasFlushPotential(c, card));
@@ -130,14 +138,12 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
                             cols = board.findCols(c -> c.numberOfCards + 1 >= max && PokerHandAnalyzer.hasFlushPotential(c, card));
                         }
                         if (!cols.isEmpty()) {
-                            cols.sort(PokerHandAnalyzer.REVERSE_ROWCOL_COMPARATOR_IN_NUMBER_OF_CARDS);
-                            for (final Board.RowCol targetCol : cols) {
-                                rows = board.findRows(r -> r.countRanks() <= 1 && r.isEmpty(targetCol.index));
-                                if (!rows.isEmpty()) {
-                                    final Board.RowCol targetRow = Collections.min(rows, PokerHandAnalyzer.ROWCOL_COMPARATOR_IN_NUMBER_OF_CARDS);
-                                    board.putCard(card, targetRow.index, targetCol.index);
-                                    return true;
-                                }
+                            final Board.RowCol targetCol = Collections.max(cols, PokerHandAnalyzer.ROWCOL_COMPARATOR_IN_NUMBER_OF_CARDS);
+                            rows = board.findRows(r -> r.countRanks() <= 1 && r.isEmpty(targetCol.index));
+                            if (!rows.isEmpty()) {
+                                final Board.RowCol targetRow = Collections.min(rows, PokerHandAnalyzer.ROWCOL_COMPARATOR_IN_NUMBER_OF_CARDS);
+                                board.putCard(card, targetRow.index, targetCol.index);
+                                return true;
                             }
                         }
                     }
@@ -156,6 +162,13 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
             candidates.sort((c0, c1) -> {
                 return c0.quality == c1.quality ? 0 : (c0.quality < c1.quality ? 1 : -1);
             });
+            if (verbose) {
+                System.out.print("Raw candidates: ");
+                candidates.stream().forEach((c) -> {
+                    System.out.print(String.format(" (%.2f:%d,%d)", c.quality, c.row + 1, c.col + 1));
+                });
+                System.out.println();
+            }
             final double max = candidates.get(0).quality;
             while (candidates.get(candidates.size() - 1).quality < max - 10) {
                 candidates.remove(candidates.size() - 1);
@@ -230,6 +243,7 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         board.clear();
         deckTracker.reset();
         strategy.reset();
+        strategy.verbose = this.verbose;
     }
 
     @Override
@@ -254,7 +268,8 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
             System.out.println();
         }
         Candidate winner;
-        final int contingency = 150 * board.getNumberOfEmptyCells() - 280;
+        final int contingency = 200 * board.getNumberOfEmptyCells() - 390;
+        strategy.verbose = false;
         if (millisRemaining <= contingency + 10) {
             if (verbose) {
                 System.out.println("No time for trials.");
@@ -262,8 +277,9 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
             winner = candidates.get(0);
         } else {
             millisRemaining -= contingency;
-            winner = monteCarloGuess(card, candidates, millisRemaining / 2);
+            winner = monteCarloGuess(card, candidates, Math.max((int) Math.floor(millisRemaining * (board.getNumberOfEmptyCells() * (-0.025) + 1)), 1));
         }
+        strategy.verbose = this.verbose;
         board.putCard(card, winner.row, winner.col);
         if (verbose) {
             System.out.println(String.format("Play %s at row %d, column %d", card, winner.row + 1, winner.col + 1));

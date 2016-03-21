@@ -239,7 +239,8 @@ public class PokerSquares {
             if (scores[i] > max) {
                 max = scores[i];
             }
-            System.out.println(score);
+            System.out.println(String.format("Score of play %d: %d", i + 1, score));
+            System.out.println();
         }
         scoreMean /= numGames;
         double scoreStdDev = 0;
@@ -373,8 +374,8 @@ public class PokerSquares {
         PokerSquares.playTournament(players, systems, 5, System.currentTimeMillis());
          */
         final MengYaXiPlayer player = new MengYaXiPlayer();
-        player.verbose = true;
+        player.verbose = false;
         final PokerSquares game = new PokerSquares(player, PokerSquaresPointSystem.getAmericanPointSystem());
-        game.playSequence(25, System.currentTimeMillis(), player.verbose);
+        game.playSequence(5, System.currentTimeMillis(), player.verbose);
     }
 }
