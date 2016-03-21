@@ -97,8 +97,8 @@ public class Card {
     }
 
     // Non-static definitions
-    private int rank; // the index of the rank String in rankNames
-    private int suit; // the index of the suit String in suitNames
+    private final int rank; // the index of the rank String in rankNames
+    private final int suit; // the index of the suit String in suitNames
 
     /**
      * Create a card with the given rank and suit.
@@ -106,7 +106,7 @@ public class Card {
      * @param rank Card rank. Should be in range [0, NUM_RANKS - 1].
      * @param suit Card suit. Should be in range [0, NUM_SUITS - 1].
      */
-    private Card(int rank, int suit) {
+    private Card(final int rank, final int suit) {
         this.rank = rank;
         this.suit = suit;
     }
