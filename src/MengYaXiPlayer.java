@@ -268,7 +268,7 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
     public int[] getPlay(final Card card, long millisRemaining) {
         deckTracker.deal(card);
         if (verbose) {
-            System.out.println("Get card \"" + card + "\"");
+            System.out.println(String.format("Get card \"%s\". Remaining seconds: %.2f", card, millisRemaining / 1000.0));
         }
         if (strategy.play(card)) {
             final Board.Play p = board.getLastPlay();
@@ -281,13 +281,13 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         if (candidates.isEmpty()) {
             candidates = Collections.unmodifiableList(board.getEmptyCells());
         }
-        final int contingency = 5 * board.getNumberOfEmptyCells();
-        if (millisRemaining <= contigency) {
+        final int contingency = 150 * board.getNumberOfEmptyCells() - 280;
+        if (millisRemaining <= contingency + 10) {
             millisRemaining = 0;
         } else {
-            millisRemaining -= contigency;
+            millisRemaining -= contingency;
         }
-        final Board.Cell winner = monteCarloGuess(card, candidates, (int) Math.floor(millisRemaining * (1.0 - Math.log(2.0) * 0.5 / Math.log(board.getNumberOfEmptyCells()))));
+        final Board.Cell winner = monteCarloGuess(card, candidates, millisRemaining / 2);
         board.putCard(card, winner.row, winner.col);
         if (verbose) {
             System.out.println(String.format("Play %s at row %d, column %d", card, winner.row + 1, winner.col + 1));
@@ -340,7 +340,7 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
 
     private Board.Cell monteCarloGuess(final Card card, final List<Board.Cell> candidates, final long millisRemaining) {
         if (verbose) {
-            System.out.println(String.format("Start Monte Carlo. Time Quota: %.2f seconds", millisRemaining / 1000.0));
+            System.out.println(String.format("Time Quota: %.2f seconds", millisRemaining / 1000.0));
         }
         if (millisRemaining <= 0) {
             if (verbose) {
@@ -354,6 +354,7 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
 
         final long start = System.currentTimeMillis();
         int totalTrials = 0;
+        final int maxTrialsPerRound = calcMaxTrialsPerRound();
 
         List<Card> cards = deckTracker.shuffle();
         int shuffles = 1;
@@ -365,22 +366,21 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
             elapsed = System.currentTimeMillis() - start;
         } while (elapsed <= 1);
         double millisPerTrial = (double) elapsed / totalTrials;
-        final long time = millisRemaining - elapsed;
 
-        if (time > 0) {
-            for (int rounds = 0; rounds < Math.sqrt(millisRemaining / millisPerTrial); ++rounds) {
-                cards = deckTracker.shuffle();
-                ++shuffles;
-                final double[] roundScores = new double[candidates.size()];
-                Arrays.fill(roundScores, Double.MIN_VALUE);
-                for (int trials = 0; trials < Math.sqrt(millisRemaining / millisPerTrial); ++trials) {
-                    testCandidates(card, candidates, roundScores, cards);
-                    ++totalTrials;
-                    millisPerTrial = (double) (System.currentTimeMillis() - start) / totalTrials;
-                }
-                for (int i = 0; i < scores.length; ++i) {
-                    scores[i] += roundScores[i];
-                }
+        while (elapsed < millisRemaining) {
+            final int maxTrails = Math.min((int) Math.round(Math.sqrt(millisRemaining / millisPerTrial)), maxTrialsPerRound);
+            cards = deckTracker.shuffle();
+            ++shuffles;
+            final double[] roundScores = new double[candidates.size()];
+            Arrays.fill(roundScores, Double.MIN_VALUE);
+            for (int trials = 0; elapsed < millisRemaining && trials < maxTrails; ++trials) {
+                testCandidates(card, candidates, roundScores, cards);
+                ++totalTrials;
+                elapsed = System.currentTimeMillis() - start;
+                millisPerTrial = (double) elapsed / totalTrials;
+            }
+            for (int i = 0; i < scores.length; ++i) {
+                scores[i] += roundScores[i];
             }
         }
         if (verbose) {
@@ -406,6 +406,14 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
             System.out.println(String.format("Scores: max %.2f, min: %.2f, avg: %.2f", maxScore, minScore, totalScore / scores.length));
         }
         return candidates.get(max);
+    }
+
+    private int calcMaxTrialsPerRound() {
+        int result = 1;
+        for (int i = board.getNumberOfEmptyCells(); i > 1; i -= 2) {
+            result *= i;
+        }
+        return result;
     }
 
     private void testCandidates(final Card card, final List<Board.Cell> candidates, final double[] scores, final List<Card> cards) {
