@@ -289,6 +289,10 @@ final class Board {
         plays.clear();
     }
 
+    public double progress() {
+        return (double) plays.size() / NUMBER_OF_CELLS;
+    }
+
     public void putCard(final Card c, final int row, final int col) {
         if (rows[row][col] != null || cols[col][row] != null) {
             throw new IllegalStateException("The cell is not empty.");

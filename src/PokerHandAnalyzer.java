@@ -1,5 +1,4 @@
 
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
@@ -12,6 +11,7 @@ class PokerHandAnalyzer {
     public static final int POKER_HAND_SIZE = Board.SIZE;
     public static final Comparator<Board.RowCol> ROWCOL_COMPARATOR_IN_NUMBER_OF_CARDS = (rc0, rc1) -> rc0.numberOfCards - rc1.numberOfCards;
     public static final Comparator<Board.RowCol> REVERSE_ROWCOL_COMPARATOR_IN_NUMBER_OF_CARDS = (rc0, rc1) -> rc1.numberOfCards - rc0.numberOfCards;
+    private static final int ROYAL_START = Card.NUM_RANKS - POKER_HAND_SIZE + 1;
 
     public static boolean hasStraightPotential(final Board.RowCol rc) {
         if (rc.numberOfCards <= 1) {
@@ -111,106 +111,83 @@ class PokerHandAnalyzer {
     }
 
     public static double score(final Board.RowCol rc, final Card card,
-        final PokerSquaresPointSystem pointSystem, final DeckTracker deck) {
+        final PokerSquaresPointSystem pointSystem, final Board board, final DeckTracker deck) {
         final List<Card> cards = rc.getCards();
-        final double score0 = score(cards, pointSystem, deck);
+        final double score0 = score(cards, pointSystem, board, deck);
         cards.add(card);
-        return score(cards, pointSystem, deck) - score0;
+        return score(cards, pointSystem, board, deck) - score0;
     }
 
     private static double score(final List<Card> cards,
-        final PokerSquaresPointSystem pointSystem, final DeckTracker deck) {
-        if (cards.isEmpty()) {
-            return 3.12;
-        }
-        if (cards.size() == 1) {
-            return 3.11;
-        }
+        final PokerSquaresPointSystem pointSystem, final Board board, final DeckTracker deck) {
         final PokerHand hand = PokerHand.getPokerHand(cards.toArray(new Card[POKER_HAND_SIZE]));
         final int handScore = pointSystem.getHandScore(hand);
+        final double progress = board.progress();
+        if (cards.isEmpty()) {
+            return 0.15 + progress;
+        }
         if (cards.size() >= POKER_HAND_SIZE) {
             return handScore;
         }
-        final int vacancies = POKER_HAND_SIZE - cards.size();
-        switch (hand) {
-            case FOUR_OF_A_KIND:
-                return handScore + 1;
-            case THREE_OF_A_KIND: {
-                if (cards.size() == 3) {
-                    final int rank = cards.get(0).getRank();
-                    return handScore + 2
-                        + 2 * (pointSystem.getHandScore(PokerHand.FOUR_OF_A_KIND) - handScore) * deck.countRank(rank) / (double) deck.getNumberOfCards();
-                }
-                final int rank = cards.get(0).getRank() == cards.get(1).getRank() || cards.get(0).getRank() == cards.get(2).getRank()
-                    ? cards.get(0).getRank() : cards.get(1).getRank();
-                final int otherRank = cards.stream().filter(c -> c.getRank() != rank).findAny().get().getRank();
-                return handScore + 1
-                    + (pointSystem.getHandScore(PokerHand.FOUR_OF_A_KIND) - handScore) * deck.countRank(rank) / (double) deck.getNumberOfCards()
-                    + (pointSystem.getHandScore(PokerHand.FULL_HOUSE) - handScore) * deck.countRank(otherRank) / (double) deck.getNumberOfCards();
-            }
-            case TWO_PAIR: {
-                final int rank = cards.get(0).getRank();
-                final int otherRank = cards.stream().filter(c -> c.getRank() != rank).findAny().get().getRank();
-                return handScore + 1
-                    + (pointSystem.getHandScore(PokerHand.FULL_HOUSE) - handScore) * deck.countRank(rank) / (double) deck.getNumberOfCards()
-                    + (pointSystem.getHandScore(PokerHand.FULL_HOUSE) - handScore) * deck.countRank(otherRank) / (double) deck.getNumberOfCards();
-            }
-            case ONE_PAIR:
-                return handScore + vacancies * 0.9;
-        }
-        double score = vacancies * 0.5;
         final int suit0 = cards.get(0).getSuit();
-        final boolean flush = cards.stream().skip(0).allMatch(c -> c.getSuit() == suit0);
-        if (flush) {
-            score += vacancies * pointSystem.getHandScore(PokerHand.FLUSH)
-                * Math.pow((double) deck.countSuit(suit0) / deck.getNumberOfCards(), vacancies);
-        }
+        final int rank0 = cards.get(0).getRank();
+        final boolean isFlush = cards.stream().skip(0).allMatch(c -> c.getSuit() == suit0);
         final boolean[] ranks = collectRanks(cards);
-        final int[] straightRange = hasStraightPotential(ranks, cards.size());
-        if (straightRange != null) {
-            final List<Integer> neededRanks = new ArrayList<>(POKER_HAND_SIZE);
-            double sp = 0.0; // rough estimate of the likelihood of straight
-            if (straightRange[1] == 0) {
-                for (int rank = Card.NUM_RANKS - POKER_HAND_SIZE + 1; rank < Card.NUM_RANKS; ++rank) {
-                    if (!ranks[rank]) {
-                        neededRanks.add(rank);
-                    }
+        final int[] straightRanges = hasStraightPotential(ranks, cards.size());
+        final boolean isStraight = straightRanges != null;
+        final boolean isRoyal = isFlush && isStraight && (straightRanges[1] == 0 || straightRanges[0] >= ROYAL_START);
+        switch (cards.size()) {
+            case 4:
+                switch (hand) {
+                    case FOUR_OF_A_KIND:
+                        return 42;
+                    case THREE_OF_A_KIND:
+                        return 12;
+                    case TWO_PAIR:
+                        return 10.1;
+                    case ONE_PAIR:
+                        return 2.99;
+                    default:
+                        if (isRoyal) {
+                            if (straightRanges[1] == 0) {
+                                for (int rank = ROYAL_START; rank < Card.NUM_RANKS; ++rank) {
+                                    if (!ranks[rank]) {
+                                        return deck.hasCard(rank, suit0) ? 14.9 - 2.9 * progress : 14 - 2 * progress;
+                                    }
+                                }
+                                throw new IllegalStateException();
+                            } else {
+                                return deck.hasCard(0, suit0) || deck.hasCard(ROYAL_START - 1, suit0)
+                                    ? 14.9 - 2.9 * progress
+                                    : 14 - 2 * progress;
+                            }
+                        }
+                        if (isFlush && isStraight) {
+                            return 14.8 - 2.8 * progress;
+                        }
+                        if (isFlush) {
+                            return 14 - 2 * progress;
+                        }
+                        return 0.1;
                 }
-            } else {
-                int startRank = straightRange[1] + 1 - POKER_HAND_SIZE;
-                if (startRank < 0) {
-                    startRank = 0;
+            case 3:
+                switch (hand) {
+                    case THREE_OF_A_KIND:
+                        return deck.hasRank(rank0) ? 14 : 11.9;
+                    case ONE_PAIR:
+                        return 4.35;
+                    default:
+                        return isFlush ? (1 - progress) * 7 + 2.8 : (isStraight ? 3.1 - 0.3 * progress : 2.8);
                 }
-                int endRank = straightRange[0] + POKER_HAND_SIZE;
-                if (endRank > ranks.length) {
-                    endRank = ranks.length;
+            case 2:
+                switch (hand) {
+                    case ONE_PAIR:
+                        return 4.4;
+                    default:
+                        return isFlush ? (1 - progress) * 6 + 2.9 : (isStraight ? 3 - 0.2 * progress : 2.9);
                 }
-                for (; startRank < endRank; ++startRank) {
-                    if (!ranks[startRank]) {
-                        neededRanks.add(startRank);
-                    }
-                }
-            }
-            final double[] rankScores = new double[neededRanks.size()];
-            for (int i = 0; i < rankScores.length; ++i) {
-                rankScores[i] = (double) deck.countRank(neededRanks.get(i)) / deck.getNumberOfCards();
-            }
-            for (int i = rankScores.length - vacancies; i >= 0; --i) {
-                double p = 0.0;
-                for (int j = 0; j < vacancies; ++j) {
-                    p *= rankScores[i + j];
-                }
-                sp += vacancies * p;
-            }
-            score += pointSystem.getHandScore(PokerHand.STRAIGHT) * sp;
-            if (flush) {
-                score += pointSystem.getHandScore(PokerHand.STRAIGHT_FLUSH) * sp;
-                if (straightRange[1] == 0) {
-                    score += pointSystem.getHandScore(PokerHand.ROYAL_FLUSH) * sp;
-                }
-            }
         }
-        return score;
+        return 0.16 + progress;
     }
 
     private static boolean[] collectRanks(final List<Card> cards) {

@@ -376,7 +376,7 @@ public class PokerSquares {
         PokerSquares.playTournament(players, systems, 5, System.currentTimeMillis());
          */
         final MengYaXiPlayer player = new MengYaXiPlayer();
-        player.verbose = false;
+        player.verbose = true;
         final PokerSquares game = new PokerSquares(player, PokerSquaresPointSystem.getAmericanPointSystem());
         game.playSequence(5, System.currentTimeMillis(), player.verbose);
     }

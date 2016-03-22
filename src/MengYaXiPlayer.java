@@ -41,7 +41,7 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         }
 
         public List<Candidate> getCandidates() {
-            return Collections.unmodifiableList(new ArrayList(candidates));
+            return Collections.unmodifiableList(new ArrayList<>(candidates));
         }
 
         /**
@@ -156,8 +156,8 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
                 });
             }
             candidates.stream().forEach((c) -> {
-                c.quality = PokerHandAnalyzer.score(board.getRow(c.row), card, pointSystem, deckTracker)
-                    + PokerHandAnalyzer.score(board.getCol(c.col), card, pointSystem, deckTracker);
+                c.quality = PokerHandAnalyzer.score(board.getRow(c.row), card, pointSystem, board, deckTracker)
+                    + PokerHandAnalyzer.score(board.getCol(c.col), card, pointSystem, board, deckTracker);
             });
             candidates.sort((c0, c1) -> {
                 return c0.quality == c1.quality ? 0 : (c0.quality < c1.quality ? 1 : -1);
@@ -170,7 +170,7 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
                 System.out.println();
             }
             final double max = candidates.get(0).quality;
-            while (candidates.get(candidates.size() - 1).quality < max - 10) {
+            while (candidates.get(candidates.size() - 1).quality + 7 < max) {
                 candidates.remove(candidates.size() - 1);
             }
             if (candidates.size() == 1) {
@@ -277,7 +277,8 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
             winner = candidates.get(0);
         } else {
             millisRemaining -= contingency;
-            winner = monteCarloGuess(card, candidates, Math.max((int) Math.floor(millisRemaining * (board.getNumberOfEmptyCells() * (-0.025) + 1)), 1));
+            winner = monteCarloGuess(card, candidates,
+                Math.max((int) Math.floor(millisRemaining * 0.7), 1));
         }
         strategy.verbose = this.verbose;
         board.putCard(card, winner.row, winner.col);

@@ -45,6 +45,19 @@ final class DeckTracker implements Iterable<Card> {
         return numberOfCards == 0;
     }
 
+    public boolean hasRank(final int rank) {
+        for (int i = rank; i < bookkeepingByCardId.length; i += Card.NUM_RANKS) {
+            if (bookkeepingByCardId[i]) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean hasCard(final int rank, final int suit) {
+        return bookkeepingByCardId[suit * Card.NUM_RANKS + rank];
+    }
+
     public int countSuit(final int suit) {
         int n = 0;
         int i = suit * Card.NUM_RANKS;
