@@ -170,7 +170,17 @@ class PokerHandAnalyzer {
                         }
                         if (isStraight) {
                             int n = 0;
-                            for (int rank = straightRanges[0]; rank < straightRanges[1] + 1; ++rank) {
+                            int rank = straightRanges[0];
+                            int rankEnd = straightRanges[1] + 1;
+                            if (rankEnd - rank < POKER_HAND_SIZE) {
+                                if (rank > 0) {
+                                    --rank;
+                                }
+                                if (rankEnd < Card.NUM_RANKS) {
+                                    ++rankEnd;
+                                }
+                            }
+                            for (; rank < rankEnd; ++rank) {
                                 if (!ranks[rank]) {
                                     n += deck.countRank(rank);
                                 }
