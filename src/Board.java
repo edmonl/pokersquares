@@ -79,8 +79,14 @@ final class Board {
             return cards[index];
         }
 
-        public Cards getCards() {
-            return new Cards(cards);
+        public List<Card> getCards() {
+            final List<Card> results = new ArrayList<>(cards.length);
+            for (final Card c : cards) {
+                if (c != null) {
+                    results.add(c);
+                }
+            }
+            return results;
         }
 
         public int findFirstPosition(final Predicate<Card> p) {
@@ -281,6 +287,10 @@ final class Board {
         Arrays.fill(numbersOfCardsOfRows, 0);
         Arrays.fill(numbersOfCardsOfCols, 0);
         plays.clear();
+    }
+
+    public double progress() {
+        return (double) plays.size() / NUMBER_OF_CELLS;
     }
 
     public void putCard(final Card c, final int row, final int col) {

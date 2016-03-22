@@ -47,7 +47,7 @@ public class PokerSquares {
 
     public static final int SIZE = 5; // square grid size
     public static final long POINT_SYSTEM_MILLIS = 300000L; // EAAI-2016 contest maximum milliseconds for processing score table
-    public static long GAME_MILLIS = 30000L; // EAAI-2016 contest maximum milliseconds per game
+    public static final long GAME_MILLIS = 30000L; // EAAI-2016 contest maximum milliseconds per game
 
     private PokerSquaresPlayer player; // current player
     private PokerSquaresPointSystem system; // current point system
@@ -239,7 +239,10 @@ public class PokerSquares {
             if (scores[i] > max) {
                 max = scores[i];
             }
-            System.out.println(score);
+            System.out.println(String.format("Score of play %d: %d", i + 1, score));
+            if (verbose) {
+                System.out.println();
+            }
         }
         scoreMean /= numGames;
         double scoreStdDev = 0;
@@ -375,6 +378,6 @@ public class PokerSquares {
         final MengYaXiPlayer player = new MengYaXiPlayer();
         player.verbose = true;
         final PokerSquares game = new PokerSquares(player, PokerSquaresPointSystem.getAmericanPointSystem());
-        game.playSequence(25, System.currentTimeMillis(), player.verbose);
+        game.playSequence(5, System.currentTimeMillis(), player.verbose);
     }
 }

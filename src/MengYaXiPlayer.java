@@ -2,8 +2,9 @@
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 import java.util.Scanner;
 
 /**
@@ -12,17 +13,35 @@ import java.util.Scanner;
  */
 public final class MengYaXiPlayer implements PokerSquaresPlayer {
 
+    private static final class Candidate {
+
+        public final int row, col;
+        public double quality = 0.0;
+
+        public Candidate(final Board.Cell cell) {
+            this.row = cell.row;
+            this.col = cell.col;
+        }
+
+        public Candidate(final int row, final int col) {
+            this.row = row;
+            this.col = col;
+        }
+    }
+
     private final class Strategy {
 
+        public boolean verbose = false;
+
         private int stage = 0;
-        private final List<Board.Cell> candidates = new ArrayList<>();
+        private final List<Candidate> candidates = new ArrayList<>();
 
         public int getStage() {
             return stage;
         }
 
-        public List<Board.Cell> getCandidates() {
-            return Collections.unmodifiableList(candidates);
+        public List<Candidate> getCandidates() {
+            return Collections.unmodifiableList(new ArrayList<>(candidates));
         }
 
         /**
@@ -65,180 +84,142 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
                     return true;
                 }
                 case 2: {
-                    Board.RowCol col = board.findFirstCol(c -> PokerHandAnalyzer.isRoyalFlush(c, card));
-                    if (col != null) {
-                        board.putCard(card, col.findFirstEmptyPosition(), col.index);
-                        return true;
-                    }
-                    Board.RowCol row = board.findFirstRow(r -> PokerHandAnalyzer.isRoyalFlush(r, card));
-                    if (row != null) {
-                        board.putCard(card, row.index, row.findFirstEmptyPosition());
-                        return true;
-                    }
-                    List<Board.RowCol> cols = board.findCols(c -> PokerHandAnalyzer.isStraightFlush(c, card));
-                    if (!cols.isEmpty()) {
-                        if (cols.size() == 1) {
-                            col = cols.get(0);
-                            board.putCard(card, col.findFirstEmptyPosition(), col.index);
-                            return true;
-                        }
-                        cols.stream().forEach((c) -> {
-                            candidates.add(new Board.Cell(c.findFirstEmptyPosition(), c.index));
-                        });
-                        return false;
-                    }
-                    List<Board.RowCol> rows = board.findRows(r -> PokerHandAnalyzer.isStraightFlush(r, card));
-                    if (!rows.isEmpty()) {
-                        if (rows.size() == 1) {
-                            row = rows.get(0);
-                            board.putCard(card, row.index, row.findFirstEmptyPosition());
-                            return true;
-                        }
-                        rows.stream().forEach((r) -> {
-                            candidates.add(new Board.Cell(r.index, r.findFirstEmptyPosition()));
-                        });
-                        return false;
-                    }
-                    rows = board.findRows(r -> r.hasRank(card.getRank()));
+                    List<Board.RowCol> rows = board.findRows(r -> r.hasRank(card.getRank()));
                     if (!rows.isEmpty()) {
                         if (rows.size() == 1) {
                             final Board.RowCol targetRow = rows.get(0);
-                            if (targetRow.numberOfCards <= 2 || targetRow.countRanks() <= 1
-                                || (!targetRow.isFull()
-                                && !PokerHandAnalyzer.hasStraightPotential(targetRow)
-                                && !PokerHandAnalyzer.hasFlushPotential(targetRow))) {
-                                if (!board.hasPlayedSuit(card.getSuit())) {
-                                    col = board.findFirstCol(c -> c.isEmpty() && targetRow.isEmpty(c.index));
-                                    if (col != null) {
-                                        board.putCard(card, targetRow.index, col.index);
+                            if (!targetRow.isFull() && targetRow.countRanks() <= 2
+                                && (targetRow.numberOfCards <= 1 || !PokerHandAnalyzer.hasFlushPotential(targetRow))) {
+                                List<Board.RowCol> cols = board.findCols(c
+                                    -> targetRow.isEmpty(c.index)
+                                    && !c.isEmpty()
+                                    && PokerHandAnalyzer.hasFlushPotential(c, card));
+                                if (cols.size() == 1) {
+                                    final Board.RowCol targetCol = cols.get(0);
+                                    if (!PokerHandAnalyzer.hasStraightPotential(targetRow) || targetRow.numberOfCards <= targetCol.numberOfCards + 1) {
+                                        cols = board.findCols(c
+                                            -> c.index != targetCol.index
+                                            && c.numberOfCards > 1
+                                            && PokerHandAnalyzer.hasStraightPotential(c, card)
+                                        );
+                                        if (cols.stream().allMatch(c -> c.numberOfCards <= targetCol.numberOfCards + 1)) {
+                                            board.putCard(card, targetRow.index, targetCol.index);
+                                            return true;
+                                        }
+                                    }
+                                } else if (cols.isEmpty()) {
+                                    final Board.RowCol targetCol = board.findFirstCol(c -> c.isEmpty());
+                                    if (targetCol != null) {
+                                        board.putCard(card, targetRow.index, targetCol.index);
                                         return true;
                                     }
-                                    return false;
-                                }
-                                cols = board.findCols(c -> targetRow.isEmpty(c.index) && PokerHandAnalyzer.hasFlushPotential(c, card));
-                                if (!cols.isEmpty()) {
-                                    int max = Collections.max(cols, PokerHandAnalyzer.ROWCOL_COMPARATOR_IN_NUMBER_OF_CARDS).numberOfCards;
-                                    cols.removeIf(c -> c.numberOfCards != max);
-                                    Optional<Board.RowCol> target = cols.stream().filter(c -> PokerHandAnalyzer.hasRoyalFlushPotential(c, card)).findFirst();
-                                    if (!target.isPresent()) {
-                                        target = cols.stream().filter(c -> PokerHandAnalyzer.hasStraightFlushPotential(c, card)).findFirst();
-                                    }
-                                    if (target.isPresent()) {
-                                        col = target.get();
-                                    } else {
-                                        col = cols.get(0);
-                                    }
-                                    board.putCard(card, targetRow.index, col.index);
-                                    return true;
-                                }
-                                cols = board.findCols(c -> targetRow.isEmpty(c.index) && PokerHandAnalyzer.hasStraightPotential(c, card));
-                                if (!cols.isEmpty()) {
-                                    col = Collections.max(cols, PokerHandAnalyzer.ROWCOL_COMPARATOR_IN_NUMBER_OF_CARDS);
-                                    board.putCard(card, targetRow.index, col.index);
-                                    return true;
-                                }
-                                cols = board.findCols(c
-                                    -> targetRow.isEmpty(c.index)
-                                    && c.numberOfCards == c.countRanks()
-                                    && !PokerHandAnalyzer.hasStraightPotential(c)
-                                    && !PokerHandAnalyzer.hasFlushPotential(c)
-                                );
-                                if (!cols.isEmpty()) {
-                                    col = Collections.max(cols, PokerHandAnalyzer.ROWCOL_COMPARATOR_IN_NUMBER_OF_CARDS);
-                                    board.putCard(card, targetRow.index, col.index);
-                                    return true;
                                 }
                             }
                         }
                     } else {
-                        if (!board.hasPlayedSuit(card.getSuit())) {
+                        if (!board.hasPlayedSuit(card.getSuit()) && board.allColsMatch(c -> PokerHandAnalyzer.hasFlushPotential(c))) {
                             final Board.RowCol targetCol = board.findFirstCol(c -> c.isEmpty());
-                            if (targetCol != null) {
-                                rows = board.findRows(r -> r.countRanks() == 1 && r.isEmpty(targetCol.index));
-                                if (!rows.isEmpty()) {
-                                    row = Collections.min(rows, PokerHandAnalyzer.ROWCOL_COMPARATOR_IN_NUMBER_OF_CARDS);
-                                    board.putCard(card, row.index, targetCol.index);
-                                    return true;
-                                }
+                            if (targetCol == null) {
+                                break;
                             }
-                            return false;
+                            rows = board.findRows(r -> r.countRanks() <= 1);
+                            if (rows.isEmpty()) {
+                                break;
+                            }
+                            final Board.RowCol targetRow = Collections.min(rows, PokerHandAnalyzer.ROWCOL_COMPARATOR_IN_NUMBER_OF_CARDS);
+                            board.putCard(card, targetRow.index, targetCol.index);
+                            return true;
                         }
-                        cols = board.findCols(c
-                            -> PokerHandAnalyzer.hasFlushPotential(c, card)
-                            && (c.numberOfCards < 4 || !PokerHandAnalyzer.hasStraightPotential(c)
-                            || PokerHandAnalyzer.hasStraightPotential(c, card))
-                        );
-                        if (!cols.isEmpty()) {
-                            cols.sort(PokerHandAnalyzer.REVERSE_ROWCOL_COMPARATOR_IN_NUMBER_OF_CARDS);
-                            for (final Board.RowCol targetCol : cols) {
-                                rows = board.findRows(r -> r.countRanks() <= 1 && r.isEmpty(targetCol.index));
-                                if (!rows.isEmpty()) {
-                                    row = Collections.min(rows, PokerHandAnalyzer.ROWCOL_COMPARATOR_IN_NUMBER_OF_CARDS);
-                                    board.putCard(card, row.index, targetCol.index);
-                                    return true;
-                                }
-                            }
-                            if (board.allRowsMatch(r -> r.countRanks() >= 2)) {
-                                for (final Board.RowCol targetCol : cols) {
-                                    rows = board.findRows(r -> r.isEmpty(targetCol.index) && PokerHandAnalyzer.hasStraightPotential(r, card));
-                                    if (!rows.isEmpty()) {
-                                        row = Collections.max(rows, PokerHandAnalyzer.ROWCOL_COMPARATOR_IN_NUMBER_OF_CARDS);
-                                        board.putCard(card, row.index, targetCol.index);
-                                        return true;
-                                    }
-                                }
-                                for (final Board.RowCol targetCol : cols) {
-                                    rows = board.findRows(r
-                                        -> r.isEmpty(targetCol.index)
-                                        && r.numberOfCards >= 3
-                                        && r.numberOfCards == r.countRanks()
-                                        && !PokerHandAnalyzer.hasStraightPotential(r)
-                                    );
-                                    if (!rows.isEmpty()) {
-                                        row = Collections.max(rows, PokerHandAnalyzer.ROWCOL_COMPARATOR_IN_NUMBER_OF_CARDS);
-                                        board.putCard(card, row.index, targetCol.index);
-                                        return true;
-                                    }
-                                }
-                                if (board.anyRowsMatch(r -> r.numberOfCards == 2)) {
-                                    for (final Board.RowCol targetCol : cols) {
-                                        row = board.findFirstRow(r -> r.numberOfCards == 2 && r.isEmpty(targetCol.index));
-                                        if (row != null) {
-                                            board.putCard(card, row.index, targetCol.index);
-                                            return true;
-                                        }
-                                    }
-                                }
-                            }
-                            return false;
+                        List<Board.RowCol> cols = board.findCols(c -> c.numberOfCards > 1 && PokerHandAnalyzer.hasStraightPotential(c, card));
+                        if (cols.isEmpty()) {
+                            cols = board.findCols(c -> PokerHandAnalyzer.hasFlushPotential(c, card));
+                        } else {
+                            final int max = Collections.max(cols, PokerHandAnalyzer.ROWCOL_COMPARATOR_IN_NUMBER_OF_CARDS).numberOfCards;
+                            cols = board.findCols(c -> c.numberOfCards + 1 >= max && PokerHandAnalyzer.hasFlushPotential(c, card));
                         }
-                        cols = board.findCols(c
-                            -> !c.isFull()
-                            && c.numberOfCards == c.countRanks()
-                            && (!PokerHandAnalyzer.hasFlushPotential(c)
-                            || c.numberOfCards <= 1 && c.isLast())
-                            && (!PokerHandAnalyzer.hasStraightPotential(c)
-                            || c.numberOfCards <= 2 && c.isLast())
-                        );
                         if (!cols.isEmpty()) {
-                            if (cols.stream().anyMatch(c -> c.isLast())) {
-                                cols.removeIf(c -> !c.isLast() && c.numberOfCards <= 1);
-                            }
-                            if (cols.size() == 1) {
-                                final Board.RowCol targetCol = cols.get(0);
-                                rows = board.findRows(r -> r.countRanks() <= 1 && r.isEmpty(targetCol.index));
-                                if (!rows.isEmpty()) {
-                                    row = Collections.min(rows, PokerHandAnalyzer.ROWCOL_COMPARATOR_IN_NUMBER_OF_CARDS);
-                                    board.putCard(card, row.index, targetCol.index);
-                                    return true;
-                                }
+                            final Board.RowCol targetCol = Collections.max(cols, PokerHandAnalyzer.ROWCOL_COMPARATOR_IN_NUMBER_OF_CARDS);
+                            rows = board.findRows(r -> r.countRanks() <= 1 && r.isEmpty(targetCol.index));
+                            if (!rows.isEmpty()) {
+                                final Board.RowCol targetRow = Collections.min(rows, PokerHandAnalyzer.ROWCOL_COMPARATOR_IN_NUMBER_OF_CARDS);
+                                board.putCard(card, targetRow.index, targetCol.index);
+                                return true;
                             }
                         }
                     }
                     break;
                 }
             }
+            if (candidates.isEmpty()) {
+                board.getEmptyCells().stream().forEach((c) -> {
+                    candidates.add(new Candidate(c));
+                });
+            }
+            candidates.stream().forEach((c) -> {
+                c.quality = PokerHandAnalyzer.score(board.getRow(c.row), card, pointSystem, board, deckTracker)
+                    + PokerHandAnalyzer.score(board.getCol(c.col), card, pointSystem, board, deckTracker);
+            });
+            candidates.sort((c0, c1) -> {
+                return c0.quality == c1.quality ? 0 : (c0.quality < c1.quality ? 1 : -1);
+            });
+            if (verbose) {
+                System.out.print("Raw candidates: ");
+                candidates.stream().forEach((c) -> {
+                    System.out.print(String.format(" (%.2f:%d,%d)", c.quality, c.row + 1, c.col + 1));
+                });
+                System.out.println();
+            }
+            final double max = candidates.get(0).quality;
+            while (candidates.get(candidates.size() - 1).quality + 7 < max) {
+                candidates.remove(candidates.size() - 1);
+            }
+            if (candidates.size() == 1) {
+                final Candidate c = candidates.get(0);
+                board.putCard(card, c.row, c.col);
+                candidates.clear();
+                return true;
+            }
+            final double min = candidates.get(candidates.size() - 1).quality;
+            final double delta = max - min;
+            if (delta > 1e-4) {
+                final List<Double> qualities = new ArrayList<>(candidates.size());
+                qualities.add(max);
+                candidates.stream().forEach((c) -> {
+                    if (c.quality != qualities.get(qualities.size() - 1)) {
+                        qualities.add(c.quality);
+                    }
+                });
+                final Map<Double, Double> qmap = new HashMap<>();
+                final int n = qualities.size();
+                for (int i = 0; i < n; ++i) {
+                    qmap.put(qualities.get(i), 1 + (double) qualities.get(i) / delta - min / delta);
+                }
+                candidates.stream().forEach((c) -> {
+                    c.quality = qmap.get(c.quality);
+                });
+                final double sum = candidates.stream().map((c) -> c.quality).reduce(0.0, (accumulator, v) -> accumulator + v);
+                candidates.stream().forEach((c) -> {
+                    c.quality /= sum;
+                });
+            } else {
+                candidates.stream().forEach((c) -> {
+                    c.quality = 1.0 / candidates.size();
+                });
+            }
             return false;
+        }
+
+        public Candidate selectCandidateRandomly() {
+            // bias to better ones
+            final double r = Math.random();
+            double sum = 0.0;
+            for (final Candidate c : candidates) {
+                sum += c.quality;
+                if (r <= sum) {
+                    return c;
+                }
+            }
+            return candidates.isEmpty() ? null : candidates.get(candidates.size() - 1);
         }
 
         public void reset() {
@@ -262,13 +243,14 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         board.clear();
         deckTracker.reset();
         strategy.reset();
+        strategy.verbose = this.verbose;
     }
 
     @Override
     public int[] getPlay(final Card card, long millisRemaining) {
         deckTracker.deal(card);
         if (verbose) {
-            System.out.println("Get card \"" + card + "\"");
+            System.out.println(String.format("Get card \"%s\". Remaining seconds: %.2f", card, millisRemaining / 1000.0));
         }
         if (strategy.play(card)) {
             final Board.Play p = board.getLastPlay();
@@ -277,49 +259,33 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
             }
             return new int[]{p.row, p.col};
         }
-        List<Board.Cell> candidates = Collections.unmodifiableList(strategy.getCandidates());
-        if (candidates.isEmpty()) {
-            candidates = Collections.unmodifiableList(board.getEmptyCells());
+        final List<Candidate> candidates = strategy.getCandidates();
+        if (verbose) {
+            System.out.print("Candidates: ");
+            candidates.stream().forEach((c) -> {
+                System.out.print(String.format(" (%.2f:%d,%d)", c.quality, c.row + 1, c.col + 1));
+            });
+            System.out.println();
         }
-        if (millisRemaining < 100) {
-            millisRemaining = 0;
+        Candidate winner;
+        final int contingency = 200 * board.getNumberOfEmptyCells() - 390;
+        strategy.verbose = false;
+        if (millisRemaining <= contingency + 10) {
+            if (verbose) {
+                System.out.println("No time for trials.");
+            }
+            winner = candidates.get(0);
+        } else {
+            millisRemaining -= contingency;
+            winner = monteCarloGuess(card, candidates,
+                Math.max((int) Math.floor(millisRemaining * 0.7), 1));
         }
-        final Board.Cell winner = monteCarloGuess(card, candidates, millisRemaining / 2);
+        strategy.verbose = this.verbose;
         board.putCard(card, winner.row, winner.col);
         if (verbose) {
             System.out.println(String.format("Play %s at row %d, column %d", card, winner.row + 1, winner.col + 1));
         }
         return new int[]{winner.row, winner.col};
-        /*
-        final Scanner in = new Scanner(System.in);
-        System.out.println(String.format("Where do you play card \"" + card + "\"?"));
-        final int[] pos = new int[2];
-        while (true) {
-            System.out.print("> ");
-            for (int i = 0; i < pos.length; ++i) {
-                while (true) {
-                    try {
-                        if (in.hasNext()) {
-                            in.skip("[,\\s]*");
-                        }
-                        pos[i] = in.nextInt() - 1;
-                        if (pos[i] >= 0 && pos[i] < 5) {
-                            break;
-                        }
-                        throw new InputMismatchException();
-                    } catch (final InputMismatchException ex) {
-                        System.out.println("Not a valid input. Try again.");
-                    }
-                }
-            }
-            if (board.isEmpty(pos[0], pos[1])) {
-                break;
-            }
-            System.out.println("The cell is not empty. Try again.");
-        }
-        board.putCard(card, pos[0], pos[1]);
-        return pos;
-         */
     }
 
     @Override
@@ -331,19 +297,12 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         final MengYaXiPlayer player = new MengYaXiPlayer();
         player.verbose = true;
         final PokerSquares game = new PokerSquares(player, PokerSquaresPointSystem.getAmericanPointSystem());
-        PokerSquares.GAME_MILLIS = 3000000;
         game.play(new Scanner(System.in));
     }
 
-    private Board.Cell monteCarloGuess(final Card card, final List<Board.Cell> candidates, final long millisRemaining) {
+    private Candidate monteCarloGuess(final Card card, final List<Candidate> candidates, final long millisRemaining) {
         if (verbose) {
-            System.out.println(String.format("Start Monte Carlo. Time Quota: %.2f seconds", millisRemaining / 1000.0));
-        }
-        if (millisRemaining <= 0) {
-            if (verbose) {
-                System.out.println("No time for trials. Randomly guess one.");
-            }
-            return candidates.get((int) Math.floor(Math.random() * candidates.size()));
+            System.out.println(String.format("Time Quota: %.2f seconds", millisRemaining / 1000.0));
         }
 
         final double[] scores = new double[candidates.size()];
@@ -351,8 +310,10 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
 
         final long start = System.currentTimeMillis();
         int totalTrials = 0;
+        final int maxTrialsPerRound = calcMaxTrialsPerRound();
 
-        List<Card> cards = deckTracker.shuffle();
+        final List<Card> cards = deckTracker.getCards();
+        shuffle(cards);
         int shuffles = 1;
 
         long elapsed = 0;
@@ -362,19 +323,22 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
             elapsed = System.currentTimeMillis() - start;
         } while (elapsed <= 1);
         double millisPerTrial = (double) elapsed / totalTrials;
-        final long time = millisRemaining - elapsed;
 
-        if (time > 0) {
-            for (int rounds = 0; rounds < Math.sqrt(millisRemaining / millisPerTrial); ++rounds) {
-                cards = deckTracker.shuffle();
-                ++shuffles;
-                final double[] roundScores = new double[candidates.size()];
-                Arrays.fill(roundScores, Double.MIN_VALUE);
-                for (int trials = 0; trials < Math.sqrt(millisRemaining / millisPerTrial); ++trials) {
-                    testCandidates(card, candidates, roundScores, cards);
-                    ++totalTrials;
-                    millisPerTrial = (double) (System.currentTimeMillis() - start) / totalTrials;
-                }
+        while (elapsed < millisRemaining) {
+            final int maxTrails = Math.max(Math.min((int) Math.round(Math.sqrt(millisRemaining / millisPerTrial)), maxTrialsPerRound), 1);
+            shuffle(cards);
+            ++shuffles;
+            final double[] roundScores = new double[candidates.size()];
+            Arrays.fill(roundScores, Double.MIN_VALUE);
+            boolean tried = false;
+            for (int trials = 0; elapsed < millisRemaining && trials < maxTrails; ++trials) {
+                testCandidates(card, candidates, roundScores, cards);
+                ++totalTrials;
+                elapsed = System.currentTimeMillis() - start;
+                millisPerTrial = (double) elapsed / totalTrials;
+                tried = true;
+            }
+            if (tried) {
                 for (int i = 0; i < scores.length; ++i) {
                     scores[i] += roundScores[i];
                 }
@@ -405,10 +369,18 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         return candidates.get(max);
     }
 
-    private void testCandidates(final Card card, final List<Board.Cell> candidates, final double[] scores, final List<Card> cards) {
+    private int calcMaxTrialsPerRound() {
+        int result = 1;
+        for (int i = board.getNumberOfEmptyCells(); i > 1; i -= 2) {
+            result *= i;
+        }
+        return result;
+    }
+
+    private void testCandidates(final Card card, final List<Candidate> candidates, final double[] scores, final List<Card> cards) {
         for (int i = 0; i < candidates.size(); ++i) {
-            final Board.Cell cell = candidates.get(i);
-            board.putCard(card, cell.row, cell.col);
+            final Candidate c = candidates.get(i);
+            board.putCard(card, c.row, c.col);
             final int score = fakePlay(cards);
             if (score > scores[i]) {
                 scores[i] = score;
@@ -423,12 +395,8 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
             final Card card = cards.get(i);
             deckTracker.deal(card);
             if (!strategy.play(card)) {
-                List<Board.Cell> candidates = new ArrayList<>(strategy.getCandidates());
-                if (candidates.isEmpty()) {
-                    candidates = board.getEmptyCells();
-                }
-                final Board.Cell cell = candidates.get((int) Math.floor(Math.random() * candidates.size()));
-                board.putCard(card, cell.row, cell.col);
+                final Candidate c = strategy.selectCandidateRandomly();
+                board.putCard(card, c.row, c.col);
             }
         }
         final int score = board.getScore(pointSystem);
@@ -439,6 +407,15 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
     private void retract(int steps) {
         for (; steps > 0; --steps) {
             deckTracker.putBack(board.retractLastPlay().card);
+        }
+    }
+
+    private void shuffle(final List<Card> cards) {
+        for (int i = cards.size() - 1; i > 0; --i) {
+            final int n = (int) Math.floor(Math.random() * (i + 1));
+            final Card tmpi = cards.get(i);
+            cards.set(i, cards.get(n));
+            cards.set(n, tmpi);
         }
     }
 }
