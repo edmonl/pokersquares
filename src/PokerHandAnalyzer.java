@@ -168,6 +168,15 @@ class PokerHandAnalyzer {
                         if (isFlush) {
                             return 14 - 2 * progress;
                         }
+                        if (isStraight) {
+                            int n = 0;
+                            for (int rank = straightRanges[0]; rank < straightRanges[1] + 1; ++rank) {
+                                if (!ranks[rank]) {
+                                    n += deck.countRank(rank);
+                                }
+                            }
+                            return n / 8.0 * 9.9 * (1.5 - progress);
+                        }
                         return 0.1;
                 }
             case 3:

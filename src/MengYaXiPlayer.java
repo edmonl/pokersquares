@@ -91,12 +91,13 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
                             if (!targetRow.isFull() && targetRow.countRanks() <= 2
                                 && (targetRow.numberOfCards <= 1 || !PokerHandAnalyzer.hasFlushPotential(targetRow))) {
                                 List<Board.RowCol> cols = board.findCols(c
-                                    -> targetRow.isEmpty(c.index)
-                                    && !c.isEmpty()
+                                    -> !c.isEmpty()
                                     && PokerHandAnalyzer.hasFlushPotential(c, card));
                                 if (cols.size() == 1) {
                                     final Board.RowCol targetCol = cols.get(0);
-                                    if (!PokerHandAnalyzer.hasStraightPotential(targetRow) || targetRow.numberOfCards <= targetCol.numberOfCards + 1) {
+                                    if (targetRow.isEmpty(targetCol.index)
+                                        && (!PokerHandAnalyzer.hasStraightPotential(targetRow)
+                                        || targetRow.numberOfCards <= targetCol.numberOfCards + 1)) {
                                         cols = board.findCols(c
                                             -> c.index != targetCol.index
                                             && c.numberOfCards > 1
@@ -255,7 +256,7 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         if (strategy.play(card)) {
             final Board.Play p = board.getLastPlay();
             if (verbose) {
-                System.out.println(String.format("Play %s at row %d, column %d", card, p.row + 1, p.col + 1));
+                System.out.println(String.format("Play \"%s\" at (%d, %d)", card, p.row + 1, p.col + 1));
             }
             return new int[]{p.row, p.col};
         }
@@ -278,12 +279,12 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         } else {
             millisRemaining -= contingency;
             winner = monteCarloGuess(card, candidates,
-                Math.max((int) Math.floor(millisRemaining * 0.7), 1));
+                Math.max((int) Math.floor(millisRemaining * (-0.04 * board.getNumberOfEmptyCells() + 1.08)), 1));
         }
         strategy.verbose = this.verbose;
         board.putCard(card, winner.row, winner.col);
         if (verbose) {
-            System.out.println(String.format("Play %s at row %d, column %d", card, winner.row + 1, winner.col + 1));
+            System.out.println(String.format("Play \"%s\" at (%d, %d)", card, winner.row + 1, winner.col + 1));
         }
         return new int[]{winner.row, winner.col};
     }
@@ -300,13 +301,29 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         game.play(new Scanner(System.in));
     }
 
+    private void calcWins(final List<Double> roundScores, final List<Integer> wins) {
+        final double maxScore = Collections.max(roundScores);
+        for (int i = 0; i < roundScores.size(); ++i) {
+            if (maxScore == roundScores.get(i)) {
+                wins.set(i, wins.get(i) + 1);
+            }
+        }
+    }
+
+    private void sumRoundScores(final List<Double> roundScores, final List<Double> scores) {
+        for (int i = 0; i < scores.size(); ++i) {
+            scores.set(i, scores.get(i) + roundScores.get(i));
+            roundScores.set(i, Double.MIN_VALUE);
+        }
+    }
+
     private Candidate monteCarloGuess(final Card card, final List<Candidate> candidates, final long millisRemaining) {
         if (verbose) {
             System.out.println(String.format("Time Quota: %.2f seconds", millisRemaining / 1000.0));
         }
 
-        final double[] scores = new double[candidates.size()];
-        Arrays.fill(scores, Double.MIN_VALUE);
+        final List<Double> scores = Arrays.asList(new Double[candidates.size()]);
+        Collections.fill(scores, 0.0);
 
         final long start = System.currentTimeMillis();
         int totalTrials = 0;
@@ -317,19 +334,23 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         int shuffles = 1;
 
         long elapsed = 0;
+        final List<Double> roundScores = Arrays.asList(new Double[candidates.size()]);
+        Collections.fill(roundScores, Double.MIN_VALUE);
+        final List<Integer> wins = Arrays.asList(new Integer[candidates.size()]);
+        Collections.fill(wins, 0);
         do {
-            testCandidates(card, candidates, scores, cards);
+            testCandidates(card, candidates, roundScores, cards);
             ++totalTrials;
             elapsed = System.currentTimeMillis() - start;
         } while (elapsed <= 1);
+        calcWins(roundScores, wins);
+        sumRoundScores(roundScores, scores);
         double millisPerTrial = (double) elapsed / totalTrials;
 
         while (elapsed < millisRemaining) {
             final int maxTrails = Math.max(Math.min((int) Math.round(Math.sqrt(millisRemaining / millisPerTrial)), maxTrialsPerRound), 1);
             shuffle(cards);
             ++shuffles;
-            final double[] roundScores = new double[candidates.size()];
-            Arrays.fill(roundScores, Double.MIN_VALUE);
             boolean tried = false;
             for (int trials = 0; elapsed < millisRemaining && trials < maxTrails; ++trials) {
                 testCandidates(card, candidates, roundScores, cards);
@@ -339,32 +360,27 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
                 tried = true;
             }
             if (tried) {
-                for (int i = 0; i < scores.length; ++i) {
-                    scores[i] += roundScores[i];
-                }
+                calcWins(roundScores, wins);
+                sumRoundScores(roundScores, scores);
             }
         }
+        for (int i = 0; i < scores.size(); ++i) {
+            scores.set(i, scores.get(i) / shuffles);
+        }
+        final double maxScore = Collections.max(scores);
+        final int max = scores.indexOf(maxScore);
         if (verbose) {
+            final double minScore = Collections.min(scores);
+            final double totalScore = scores.stream().reduce(0.0, (acc, v) -> acc + v);
+            System.out.println(String.format("Scores: max %.2f, min: %.2f, avg: %.2f", maxScore, minScore, totalScore / scores.size()));
             System.out.println(String.format("%d shuffles, %d trials completed with %.2f seconds",
                 shuffles, totalTrials, (System.currentTimeMillis() - start) / 1000.0));
-        }
-        scores[0] /= shuffles;
-        double maxScore = scores[0];
-        int max = 0;
-        double minScore = scores[0];
-        double totalScore = scores[0];
-        for (int i = 1; i < scores.length; ++i) {
-            scores[i] /= shuffles;
-            totalScore += scores[i];
-            if (maxScore < scores[i]) {
-                maxScore = scores[i];
-                max = i;
-            } else if (minScore > scores[i]) {
-                minScore = scores[i];
-            }
-        }
-        if (verbose) {
-            System.out.println(String.format("Scores: max %.2f, min: %.2f, avg: %.2f", maxScore, minScore, totalScore / scores.length));
+            System.out.print("Wins:");
+            final int finalRounds = shuffles;
+            wins.stream().forEach((w) -> {
+                System.out.print(String.format(" %.2f", (double) w / finalRounds));
+            });
+            System.out.println();
         }
         return candidates.get(max);
     }
@@ -377,13 +393,13 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         return result;
     }
 
-    private void testCandidates(final Card card, final List<Candidate> candidates, final double[] scores, final List<Card> cards) {
+    private void testCandidates(final Card card, final List<Candidate> candidates, final List<Double> scores, final List<Card> cards) {
         for (int i = 0; i < candidates.size(); ++i) {
             final Candidate c = candidates.get(i);
             board.putCard(card, c.row, c.col);
             final int score = fakePlay(cards);
-            if (score > scores[i]) {
-                scores[i] = score;
+            if (score > scores.get(i)) {
+                scores.set(i, Double.valueOf(score));
             }
             board.retractLastPlay();
         }
