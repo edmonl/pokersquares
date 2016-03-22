@@ -17,6 +17,8 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
 
         public final int row, col;
         public double quality = 0.0;
+        public double totalScore = 0.0;
+        public double roundScore = Double.MIN_VALUE;
 
         public Candidate(final Board.Cell cell) {
             this.row = cell.row;
@@ -41,7 +43,11 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         }
 
         public List<Candidate> getCandidates() {
-            return Collections.unmodifiableList(new ArrayList<>(candidates));
+            return new ArrayList<>(candidates);
+        }
+
+        public int getNumberOfCandidates() {
+            return candidates.size();
         }
 
         /**
@@ -269,7 +275,7 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
             System.out.println();
         }
         Candidate winner;
-        final int contingency = 200 * board.getNumberOfEmptyCells() - 390;
+        final int contingency = 40 * board.getNumberOfEmptyCells() - 70;
         strategy.verbose = false;
         if (millisRemaining <= contingency + 10) {
             if (verbose) {
@@ -348,12 +354,13 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         double millisPerTrial = (double) elapsed / totalTrials;
 
         while (elapsed < millisRemaining) {
-            final int maxTrails = Math.max(Math.min((int) Math.round(Math.sqrt(millisRemaining / millisPerTrial)), maxTrialsPerRound), 1);
             shuffle(cards);
             ++shuffles;
+            final int estimatedMaxTrails = Math.max((int) Math.round(Math.sqrt(millisRemaining / millisPerTrial)), 1);
+            int maxTrails = estimatedMaxTrails;
             boolean tried = false;
             for (int trials = 0; elapsed < millisRemaining && trials < maxTrails; ++trials) {
-                testCandidates(card, candidates, roundScores, cards);
+                maxTrails = (int) Math.round(Math.min(testCandidates(card, candidates, roundScores, cards) * 2, estimatedMaxTrails));
                 ++totalTrials;
                 elapsed = System.currentTimeMillis() - start;
                 millisPerTrial = (double) elapsed / totalTrials;
@@ -370,17 +377,22 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         final double maxScore = Collections.max(scores);
         final int max = scores.indexOf(maxScore);
         if (verbose) {
-            final double minScore = Collections.min(scores);
-            final double totalScore = scores.stream().reduce(0.0, (acc, v) -> acc + v);
-            System.out.println(String.format("Scores: max %.2f, min: %.2f, avg: %.2f", maxScore, minScore, totalScore / scores.size()));
-            System.out.println(String.format("%d shuffles, %d trials completed with %.2f seconds",
-                shuffles, totalTrials, (System.currentTimeMillis() - start) / 1000.0));
             System.out.print("Wins:");
             final int finalRounds = shuffles;
             wins.stream().forEach((w) -> {
                 System.out.print(String.format(" %.2f", (double) w / finalRounds));
             });
             System.out.println();
+            System.out.print("Scores:");
+            scores.stream().forEach((s) -> {
+                System.out.print(String.format(" %.2f", s));
+            });
+            System.out.println();
+            final double minScore = Collections.min(scores);
+            final double totalScore = scores.stream().reduce(0.0, (acc, v) -> acc + v);
+            System.out.println(String.format("Scores: max %.2f, min: %.2f, avg: %.2f", maxScore, minScore, totalScore / scores.size()));
+            System.out.println(String.format("%d shuffles, %d trials completed with %.2f seconds",
+                shuffles, totalTrials, (System.currentTimeMillis() - start) / 1000.0));
         }
         return candidates.get(max);
     }
@@ -393,31 +405,54 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         return result;
     }
 
-    private void testCandidates(final Card card, final List<Candidate> candidates, final List<Double> scores, final List<Card> cards) {
+    /**
+     *
+     * @param card
+     * @param candidates
+     * @param scores
+     * @param cards
+     * @return branching factor
+     */
+    private double testCandidates(final Card card, final List<Candidate> candidates, final List<Double> scores, final List<Card> cards) {
+        int totalBranches = 0;
         for (int i = 0; i < candidates.size(); ++i) {
             final Candidate c = candidates.get(i);
             board.putCard(card, c.row, c.col);
-            final int score = fakePlay(cards);
-            if (score > scores.get(i)) {
-                scores.set(i, Double.valueOf(score));
+            final int[] results = fakePlay(cards);
+            totalBranches += results[1];
+            if (results[0] > scores.get(i)) {
+                scores.set(i, Double.valueOf(results[0]));
             }
             board.retractLastPlay();
         }
+        return (double) totalBranches / candidates.size();
     }
 
-    private int fakePlay(final List<Card> cards) {
+    /**
+     *
+     * @param cards
+     * @return score and branches
+     */
+    private int[] fakePlay(final List<Card> cards) {
         final int numberOfCards = board.getNumberOfEmptyCells();
+        int branches = 1;
         for (int i = 0; i < numberOfCards; ++i) {
             final Card card = cards.get(i);
             deckTracker.deal(card);
             if (!strategy.play(card)) {
+                if (branches < 999999) {
+                    branches *= strategy.getNumberOfCandidates();
+                }
+                if (branches > 999999) {
+                    branches = 999999;
+                }
                 final Candidate c = strategy.selectCandidateRandomly();
                 board.putCard(card, c.row, c.col);
             }
         }
         final int score = board.getScore(pointSystem);
         retract(numberOfCards);
-        return score;
+        return new int[]{score, branches};
     }
 
     private void retract(int steps) {
