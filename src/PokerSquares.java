@@ -378,6 +378,6 @@ public class PokerSquares {
         final MengYaXiPlayer player = new MengYaXiPlayer();
         player.verbose = true;
         final PokerSquares game = new PokerSquares(player, PokerSquaresPointSystem.getAmericanPointSystem());
-        game.playSequence(5, System.currentTimeMillis(), player.verbose);
+        game.playSequence(25, 233333, player.verbose);
     }
 }
