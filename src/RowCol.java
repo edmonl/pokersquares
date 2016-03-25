@@ -20,6 +20,7 @@ class RowCol {
     protected final int[] ranks = new int[Card.NUM_RANKS];
     protected final int[] suits = new int[Card.NUM_SUITS];
     protected final int[] rankRange = new int[2];
+    protected int anyCardPosition = -1;
 
     public RowCol(final int index) {
         this.index = index;
@@ -225,14 +226,8 @@ class RowCol {
         return suitCount;
     }
 
-    public final Card findFirstCard() {
-        for (final Card c : positions) {
-            if (c != null) {
-                return c;
-            }
-        }
-        return null;
-
+    public final Card getAnyCard() {
+        return anyCardPosition >= 0 ? positions[anyCardPosition] : null;
     }
 
     public final Card findFirstCard(final Predicate<Card> p) {
@@ -260,6 +255,9 @@ class RowCol {
         positions[pos] = card;
         ++ranks[card.getRank()];
         ++suits[card.getSuit()];
+        if (numberOfCards == 1) {
+            anyCardPosition = pos;
+        }
     }
 
     protected void removeCard(final int pos) {
@@ -291,6 +289,16 @@ class RowCol {
             }
         }
         --numberOfCards;
+        if (numberOfCards == 0) {
+            anyCardPosition = -1;
+        } else if (pos == anyCardPosition) {
+            for (int i = 0; i < SIZE; ++i) {
+                if (positions[i] != null) {
+                    anyCardPosition = i;
+                    break;
+                }
+            }
+        }
     }
 
     private double score(final PokerSquaresPointSystem pointSystem, final Board board, final DeckTracker deck) {
@@ -303,7 +311,7 @@ class RowCol {
         if (numberOfCards >= SIZE) {
             return handScore;
         }
-        final Card card = findFirstCard();
+        final Card card = getAnyCard();
         final int suit0 = card.getSuit();
         final int rank0 = card.getRank();
         final boolean isFlush = suitCount == 1;
@@ -324,7 +332,7 @@ class RowCol {
                         return deck.hasRank(goodRank) ? 10.9 + 2.5 * deck.countRank(otherRank) : 10.9 + deck.countRank(otherRank);
                     }
                     case TWO_PAIR:
-                        return 10.1;
+                        return 9.1;
                     case ONE_PAIR:
                         return 2.99;
                     default:
@@ -342,11 +350,8 @@ class RowCol {
                                     ? 14.8 - 2.8 * progress : 14 - 2 * progress);
                             }
                         }
-                        if (isFlush && isStraight) {
-                            return 14.8 - 2.8 * progress;
-                        }
                         if (isFlush) {
-                            return 14 - 2 * progress;
+                            return isStraight ? 14.9 : 14 - 2 * progress;
                         }
                         if (isStraight) {
                             int n = 0;
@@ -365,7 +370,7 @@ class RowCol {
                                     n += deck.countRank(rank);
                                 }
                             }
-                            return n / 8.0 * 9.8 * (1.5 - progress);
+                            return n * 0.9 + 1.1;
                         }
                         return 1.1;
                 }
@@ -376,7 +381,7 @@ class RowCol {
                     case ONE_PAIR:
                         return 4.35;
                     default:
-                        return isFlush ? (1 - progress) * 4 + 4.9 : (isStraight ? 2.7 - 0.6 * progress : 2.1);
+                        return isFlush ? (1 - progress) * 4 + 5.9 : (isStraight ? 2.7 - 0.6 * progress : 2.1);
                 }
             case 2:
                 switch (hand) {
