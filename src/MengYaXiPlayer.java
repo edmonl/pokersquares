@@ -144,7 +144,9 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
                                 cols.remove(cols.size() - 1);
                             }
                             final RowCol targetCol = cols.get(0);
-                            if (cols.size() == 1 || cols.get(1).numberOfCards() < targetCol.numberOfCards() && !targetCol.hasStraightPotential()) {
+                            if (cols.size() == 1
+                                || cols.get(1).numberOfCards() < targetCol.numberOfCards()
+                                && (targetCol.numberOfCards() <= 2 || !targetCol.hasStraightPotential())) {
                                 if (targetRow.isEmpty(targetCol.index)) {
                                     board.putCard(card, targetRow.index, targetCol.index);
                                     return true;
