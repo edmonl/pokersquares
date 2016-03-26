@@ -133,7 +133,7 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
             if (!rows.isEmpty()) {
                 if (rows.size() == 1) {
                     final RowCol targetRow = rows.get(0);
-                    if (!targetRow.isFull() && (targetRow.numberOfCards() <= 2 || targetRow.countRank(card.getRank()) >= 2)
+                    if (!targetRow.isFull() && (targetRow.numberOfCards() <= 3 || targetRow.countRank(card.getRank()) >= 2)
                         && board.allRowsMatch(r -> r.countRanks() <= 2
                             || !r.hasStraightPotential(card) && !r.hasFlushPotential(card))
                         && board.allColsMatch(c -> c.countSuits() <= 1 || !c.hasStraightPotential(card))) {
