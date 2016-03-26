@@ -439,12 +439,16 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
             }
         }
         if (maxRoundScore > minRoundScore) {
-            final Linear awardFactor = new Linear(2, 0.001, 5, 0.01);
+            final Linear awardFactor = new Linear(2, 0.0005, 5, 0.005);
             final double award = awardFactor.apply((double) candidates.size());
             final Linear linear = new Linear(minRoundScore, -award, maxRoundScore, award);
             candidates.stream().forEach((c) -> {
                 c.quality += linear.apply((double) c.score);
                 c.nextRound();
+            });
+            final double maxQuality = Collections.max(candidates, Candidate.QUALITY_COMPARATOR).quality;
+            candidates.stream().forEach((c) -> {
+                c.quality /= maxQuality;
             });
             candidates.sort(Candidate.REVERSE_QUALITY_COMPARATOR);
             while (candidates.size() > 1 && candidates.get(candidates.size() - 1).quality <= 1e-5) {
