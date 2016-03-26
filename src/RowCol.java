@@ -407,6 +407,6 @@ class RowCol {
                         return isFlush ? (1 - progress) * 4 + 4.5 : (isStraight ? 2.5 - 0.3 * progress : 2.2);
                 }
         }
-        return 1.5;
+        return 1.9;
     }
 }

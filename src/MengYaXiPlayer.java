@@ -152,13 +152,17 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
                                     return true;
                                 }
                             }
-                            for (int i = 0; i < RowCol.SIZE; ++i) {
-                                if (targetRow.isEmpty(i)) {
-                                    candidates.add(new Candidate(targetRow.index, i));
+                            if (cols.stream().allMatch(c -> !c.isEmpty(targetRow.index))) {
+                                for (int i = 0; i < RowCol.SIZE; ++i) {
+                                    if (targetRow.isEmpty(i)) {
+                                        candidates.add(new Candidate(targetRow.index, i));
+                                    }
                                 }
                             }
                             for (final RowCol c : cols) {
-                                if (!c.isEmpty(targetRow.index)) {
+                                if (c.isEmpty(targetRow.index)) {
+                                    candidates.add(new Candidate(targetRow.index, c.index));
+                                } else {
                                     for (int i = 0; i < RowCol.SIZE; ++i) {
                                         if (c.isEmpty(i)) {
                                             candidates.add(new Candidate(i, c.index));
