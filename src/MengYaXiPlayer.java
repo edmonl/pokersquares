@@ -211,14 +211,9 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
                                     rows.remove(rows.size() - 1);
                                 }
                             }
-                            if (rows.size() == 1) {
-                                final RowCol targetRow = rows.get((int) Math.floor(Math.random() * rows.size()));
-                                board.putCard(card, targetRow.index, targetCol.index);
-                                return true;
-                            }
-                            for (final RowCol r : rows) {
-                                candidates.add(new Candidate(r.index, targetCol.index));
-                            }
+                            final RowCol targetRow = rows.get((int) Math.floor(Math.random() * rows.size()));
+                            board.putCard(card, targetRow.index, targetCol.index);
+                            return true;
                         } else {
                             rows = board.findRows(r -> r.isEmpty(targetCol.index) && r.countRanks() == 1);
                             if (!rows.isEmpty()) {
