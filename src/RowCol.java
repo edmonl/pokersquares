@@ -2,6 +2,7 @@
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
+import util.Pokers;
 
 /**
  *
@@ -119,14 +120,23 @@ class RowCol {
     }
 
     public final boolean hasStraightPotential(final Card card) {
-        if (isFull()) {
+        if (isEmpty()) {
+            return true;
+        }
+        final int newRank = card.getRank();
+        if (ranks[newRank] > 0 || isFull() || !hasStraightPotential()) {
             return false;
         }
-        final int p = findFirstEmptyPosition();
-        putCard(card, p);
-        final boolean sp = hasStraightPotential();
-        removeCard(p);
-        return sp;
+        if (rankCount == 1) {
+            return Pokers.rankDistance(newRank, getAnyCard().getRank()) < SIZE;
+        }
+        if (newRank == 0) {
+            return rankRange[1] < SIZE || rankRange[0] > Card.NUM_RANKS - SIZE;
+        }
+        if (ranks[0] > 0) {
+            return rankRange[1] < SIZE && newRank < SIZE || rankRange[0] > Card.NUM_RANKS - SIZE && newRank > Card.NUM_RANKS - SIZE;
+        }
+        return Integer.max(rankRange[1], newRank) - Integer.min(rankRange[0], newRank) < SIZE;
     }
 
     public final boolean hasFlushPotential() {
@@ -134,14 +144,7 @@ class RowCol {
     }
 
     public final boolean hasFlushPotential(final Card card) {
-        if (isFull()) {
-            return false;
-        }
-        final int p = findFirstEmptyPosition();
-        putCard(card, p);
-        final boolean fp = hasFlushPotential();
-        removeCard(p);
-        return fp;
+        return isEmpty() || !isFull() && suitCount <= 1 && getAnyCard().getSuit() == card.getSuit();
     }
 
     public final int size() {
@@ -228,6 +231,19 @@ class RowCol {
 
     public final Card getAnyCard() {
         return anyCardPosition >= 0 ? positions[anyCardPosition] : null;
+    }
+
+    public final int getAnotherRank(final int rank) {
+        if (isEmpty()) {
+            return -1;
+        }
+        if (ranks[0] > 0) {
+            if (rank != 0) {
+                return 0;
+            }
+            return rankCount == 1 ? -1 : rankRange[0];
+        }
+        return rank == rankRange[0] ? (rank == rankRange[1] ? -1 : rankRange[1]) : rankRange[0];
     }
 
     public final Card findFirstCard(final Predicate<Card> p) {
@@ -325,9 +341,9 @@ class RowCol {
                     case THREE_OF_A_KIND: {
                         int goodRank = rank0, otherRank = rank0;
                         if (countRank(rank0) == 1) {
-                            goodRank = findFirstCard(c -> c.getRank() != rank0).getRank();
+                            goodRank = getAnotherRank(rank0);
                         } else {
-                            otherRank = findFirstCard(c -> c.getRank() != rank0).getRank();
+                            otherRank = getAnotherRank(rank0);
                         }
                         return deck.hasRank(goodRank) ? 10.9 + 2.5 * deck.countRank(otherRank) : 10.9 + deck.countRank(otherRank);
                     }
