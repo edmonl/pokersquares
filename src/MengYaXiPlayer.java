@@ -15,8 +15,8 @@ import util.Linear;
  */
 public final class MengYaXiPlayer implements PokerSquaresPlayer {
 
-    private static final Linear QUOTA = new Linear(2, 1, 15, 0.45);
-    private static final Linear AWARD_FACTOR = new Linear(2, 0.002, 5, 0.015);
+    private static final Linear QUOTA = new Linear(2, 1, 15, 0.42);
+    private static final Linear AWARD_FACTOR = new Linear(2, 0.002, 5, 0.018);
 
     public boolean verbose = false;
     private PokerSquaresPointSystem pointSystem;
@@ -121,8 +121,11 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         final CellCandidate scoreWinner = Collections.max(candidates, CellCandidate.SCORE_COMPARATOR);
         final CellCandidate qualityWinner = Collections.max(candidates, CellCandidate.QUALITY_COMPARATOR);
         CellCandidate winner = scoreWinner;
-        if (qualityWinner != scoreWinner && qualityWinner.quality / scoreWinner.quality >= 2
-            && scoreWinner.score - qualityWinner.score < 2) {
+        if (qualityWinner != scoreWinner
+            && (scoreWinner.score - qualityWinner.score < 1
+            && scoreWinner.quality <= 0.9
+            || scoreWinner.quality <= 0.5
+            && scoreWinner.score - qualityWinner.score < 2)) {
             winner = qualityWinner;
         }
         if (verbose) {

@@ -171,15 +171,19 @@ final class CellCandidateEvaluator implements Callable<CellCandidateEvaluator> {
 
     private static CellCandidate selectCandidateRandomly(final List<CellCandidate> candidates) {
         // bias to better ones
-        final double r = Math.random();
         double sum = 0.0;
+        for (final CellCandidate c : candidates) {
+            sum += c.quality;
+        }
+        final double r = Math.random() * sum;
+        sum = 0.0;
         for (final CellCandidate c : candidates) {
             sum += c.quality;
             if (r <= sum) {
                 return c;
             }
         }
-        return candidates.isEmpty() ? null : candidates.get(candidates.size() - 1);
+        return candidates.get(candidates.size() - 1);
     }
 
     private static void shuffle(final List<Card> cards) {

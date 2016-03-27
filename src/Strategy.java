@@ -176,7 +176,9 @@ final class Strategy {
                             candidates.add(new CellCandidate(r.index, targetCol.index));
                         }
                     } else {
-                        for (int i = 0; i < RowCol.SIZE; ++i) {
+                        int i = targetCol.findFirstEmptyPosition();
+                        candidates.add(new CellCandidate(i, targetCol.index));
+                        for (++i; i < RowCol.SIZE; ++i) {
                             if (targetCol.isEmpty(i)) {
                                 candidates.add(new CellCandidate(i, targetCol.index));
                             }
