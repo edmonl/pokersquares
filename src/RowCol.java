@@ -1,5 +1,6 @@
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.function.Predicate;
 import util.Pokers;
@@ -9,6 +10,9 @@ import util.Pokers;
  * @author Meng
  */
 class RowCol {
+
+    public static final Comparator<RowCol> NUMBER_OF_CARDS_COMPARATOR = (rc0, rc1) -> rc0.numberOfCards() - rc1.numberOfCards();
+    public static final Comparator<RowCol> REVERSE_NUMBER_OF_CARDS_COMPARATOR = (rc0, rc1) -> rc1.numberOfCards() - rc0.numberOfCards();
 
     public static final int SIZE = Board.SIZE;
 

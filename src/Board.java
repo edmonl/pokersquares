@@ -48,6 +48,14 @@ final class Board {
         }
     }
 
+    public void copyFrom(final Board board) {
+        Collections.copy(plays, board.plays);
+        for (int i = 0; i < SIZE; ++i) {
+            rows[i].copyFrom(board.rows[i]);
+            cols[i].copyFrom(board.cols[i]);
+        }
+    }
+
     public void clear() {
         plays.clear();
         for (int i = 0; i < SIZE; ++i) {
