@@ -3,12 +3,15 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
+import util.Linear;
 
 /**
  *
  * @author Meng
  */
 final class CellCandidateEvaluator implements Callable<List<CellCandidate>> {
+
+    private static final Linear SAMPLE_TIME = new Linear(6, 50, 20, 1000);
 
     private final Board board;
     private final DeckTracker deck;
@@ -44,54 +47,81 @@ final class CellCandidateEvaluator implements Callable<List<CellCandidate>> {
         millis = 0;
     }
 
-    public void setState(final Card card, final List<Card> cards) {
-        this.card = card;
-        this.cards = new ArrayList<>(cards);
-    }
-
-    public void copyStateFrom(final Board board, final DeckTracker deck, final List<CellCandidate> candidates, final long millisRemaining) {
-        this.board.copyFrom(board);
-        this.deck.copyFrom(deck);
+    public void setCandidates(final List<CellCandidate> candidates) {
         this.candidates = new ArrayList<>(candidates.size());
         for (final CellCandidate c : candidates) {
             this.candidates.add(new CellCandidate(c.row, c.col));
         }
-        this.millis = millisRemaining;
     }
 
-    public void evaluate(final Card card, final List<CellCandidate> candidates, final List<Card> cards, final long millisRemaining) {
+    public List<CellCandidate> getCandidates() {
+        return candidates;
+    }
+
+    public void setTimeQuota(final long millisRemaining) {
+        millis = millisRemaining;
+    }
+
+    public void copyStateFrom(final Board board, final DeckTracker deck,
+        final Card card, final List<CellCandidate> candidates, final List<Card> cards) {
+        this.board.copyFrom(board);
+        this.deck.copyFrom(deck);
+        this.card = card;
+        setCandidates(candidates);
+        this.cards = new ArrayList<>(cards);
+    }
+
+    public void evaluate(final Card card, final List<Card> cards, final long millisRemaining) {
+        final long deadline = System.currentTimeMillis() + millisRemaining;
         shuffle(cards);
-        testCandidates(card, candidates, cards.subList(0, board.numberOfEmptyCells() - 1), millisRemaining);
+        int numberOfCandidates = 0;
+        for (final CellCandidate c : candidates) {
+            if (c != null) {
+                ++numberOfCandidates;
+            }
+        }
+        int numberOfProcessed = 0;
+        final List<Card> remainingCards = cards.subList(0, board.numberOfEmptyCells() - 1);
+        for (int i = 0; i < candidates.size(); ++i) {
+            final CellCandidate c = candidates.get(i);
+            if (c != null) {
+                board.putCard(card, c.row, c.col);
+                c.score = fakePlay(remainingCards, (deadline - System.currentTimeMillis()) / (numberOfCandidates - numberOfProcessed));
+                board.retractLastPlay();
+                ++numberOfProcessed;
+            }
+        }
     }
 
     @Override
     public List<CellCandidate> call() throws Exception {
-        evaluate(card, candidates, cards, millis);
+        evaluate(card, cards, millis);
         return candidates;
     }
 
     private void testCandidates(final Card card, final List<CellCandidate> candidates,
         final List<Card> cards, final long millisRemaining) {
-        final long startMillis = System.currentTimeMillis();
+        final long deadline = System.currentTimeMillis() + millisRemaining;
         for (int i = 0; i < candidates.size(); ++i) {
             final CellCandidate c = candidates.get(i);
             board.putCard(card, c.row, c.col);
-            c.score = fakePlay(cards, (millisRemaining - (System.currentTimeMillis() - startMillis)) / (candidates.size() - i));
+            c.score = fakePlay(cards, (deadline - System.currentTimeMillis()) / (candidates.size() - i));
             board.retractLastPlay();
         }
     }
 
     private double fakePlay(final List<Card> cards, final long millisRemaining) {
-        final long startMillis = System.currentTimeMillis();
+        final long deadline = System.currentTimeMillis() + millisRemaining;
         for (int i = 0; i < cards.size(); ++i) {
             final Card c = cards.get(i);
             deck.deal(c);
             if (!strategy.play(c)) {
                 final List<CellCandidate> cans = strategy.getCandidates();
-                if (System.currentTimeMillis() - startMillis - 100 <= millisRemaining && cards.size() - i > 5) {
-                    sampleCandidates(100, c, cans, cards.subList(i + 1, cards.size()));
+                final int remainingCards = cards.size() - i - 1;
+                if (remainingCards > 5 && System.currentTimeMillis() + SAMPLE_TIME.apply((double) remainingCards) > deadline) {
+                    sampleCandidates(c, cans, cards.subList(i + 1, cards.size()), deadline - System.currentTimeMillis());
                 } else {
-                    testCandidates(c, cans, cards.subList(i + 1, cards.size()), millisRemaining - (System.currentTimeMillis() - startMillis));
+                    testCandidates(c, cans, cards.subList(i + 1, cards.size()), deadline - System.currentTimeMillis());
                 }
                 deck.putBack(c);
                 retract(i);
@@ -103,16 +133,21 @@ final class CellCandidateEvaluator implements Callable<List<CellCandidate>> {
         return score;
     }
 
-    private void sampleCandidates(final int times, final Card card, final List<CellCandidate> candidates, final List<Card> cards) {
-        for (int i = 0; i < times; ++i) {
-            final CellCandidate c = selectCandidateRandomly(candidates);
-            board.putCard(card, c.row, c.col);
-            final int score = randomPlay(cards);
-            if (score > c.score) {
-                c.score = score;
+    private void sampleCandidates(final Card card, final List<CellCandidate> candidates,
+        final List<Card> cards, final long millisRemaining) {
+        final long deadline = System.currentTimeMillis() + millisRemaining;
+        int numberOfSamples = 0;
+        do {
+            for (final CellCandidate c : candidates) {
+                board.putCard(card, c.row, c.col);
+                final int score = randomPlay(cards);
+                if (score > c.score) {
+                    c.score = score;
+                }
+                board.retractLastPlay();
             }
-            board.retractLastPlay();
-        }
+            ++numberOfSamples;
+        } while (numberOfSamples < 100 || System.currentTimeMillis() < deadline);
     }
 
     private int randomPlay(final List<Card> cards) {

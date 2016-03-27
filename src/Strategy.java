@@ -254,7 +254,7 @@ final class Strategy {
             });
         } else {
             candidates.stream().forEach((c) -> {
-                c.quality = 0.2;
+                c.quality = 1.0 / candidates.size();
             });
         }
         return false;
