@@ -15,7 +15,8 @@ import util.Linear;
  */
 public final class MengYaXiPlayer implements PokerSquaresPlayer {
 
-    private static final Linear QUOTA = new Linear(2, 1, 15, 0.6);
+    private static final Linear QUOTA = new Linear(2, 1, 15, 0.5);
+    private static final Linear AWARD_FACTOR = new Linear(2, 0.002, 5, 0.01);
 
     public boolean verbose = false;
     private PokerSquaresPointSystem pointSystem;
@@ -69,7 +70,7 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
             System.out.println();
         }
         CellCandidate winner;
-        final int contingency = 40 * (board.numberOfEmptyCells() - 1);
+        final int contingency = 50 * board.numberOfEmptyCells() - 70;
         strategy.verbose = false;
         if (millisRemaining < contingency) {
             if (verbose) {
@@ -155,6 +156,7 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
 
     private int multiThreadMonteCarlo(final Card card, List<CellCandidate> candidates, final long deadline) {
         final List<Card> cards = deckTracker.getCards();
+        final long start = System.currentTimeMillis();
         int shuffles = 0;
         for (final CellCandidateEvaluator worker : workers) {
             worker.copyStateFrom(board, deckTracker, card, candidates, cards);
@@ -171,7 +173,8 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
                 --numberOfWorkers;
                 ++shuffles;
                 numberOfCandidates = prepareNextShuffle(candidates, worker.getCandidates());
-                if (numberOfCandidates <= 1 || System.currentTimeMillis() >= deadline) {
+                final long now = System.currentTimeMillis();
+                if (numberOfCandidates <= 1 || now + (now - start) / shuffles >= deadline) {
                     continue;
                 }
                 worker.setTimeQuota(shuffles < 500
@@ -204,8 +207,7 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
             }
         }
         if (max > min) {
-            final Linear awardFactor = new Linear(2, 0.002, 5, 0.01);
-            final double award = awardFactor.apply((double) numberOfCandidates);
+            final double award = AWARD_FACTOR.apply((double) numberOfCandidates);
             final Linear linear = new Linear(min, -award, max, award);
             max = Double.MIN_VALUE;
             for (int i = 0; i < candidates.size(); ++i) {
