@@ -3,6 +3,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Scanner;
+import java.util.concurrent.CompletionService;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.Executors;
 import util.Linear;
@@ -21,7 +23,7 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
     private final DeckTracker deckTracker = new DeckTracker();
     private final Strategy strategy = new Strategy(board, deckTracker);
     private final CellCandidateEvaluator candidateEvaluator = new CellCandidateEvaluator(board, deckTracker, strategy);
-    private final ExecutorCompletionService executor = new ExecutorCompletionService(Executors.newWorkStealingPool());
+    private final CompletionService<CellCandidateEvaluator> executor = new ExecutorCompletionService<>(Executors.newWorkStealingPool());
     private final List<CellCandidateEvaluator> workers = new ArrayList<>();
 
     @Override
@@ -109,7 +111,7 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         if (workers.isEmpty()) {
             shuffles = singleThreadMonteCarlo(card, candidates, deadline);
         } else {
-            shuffles = multiThreadMonteCarlo(card, candidates, deadline);
+            shuffles = singleThreadMonteCarlo(card, candidates, deadline);
         }
         candidates.removeIf(c -> c == null);
         for (final CellCandidate c : candidates) {
@@ -138,9 +140,6 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         final List<Card> cards = deckTracker.getCards();
         int shuffles = 0;
         int numberOfCandidates;
-        for (final CellCandidateEvaluator worker : workers) {
-            worker.copyStateFrom(board, deckTracker, card, candidates, cards);
-        }
         candidateEvaluator.setCandidates(candidates);
         do {
             candidateEvaluator.evaluate(card, cards,
@@ -157,17 +156,34 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
     private int multiThreadMonteCarlo(final Card card, List<CellCandidate> candidates, final long deadline) {
         final List<Card> cards = deckTracker.getCards();
         int shuffles = 0;
-        int numberOfCandidates;
-        candidateEvaluator.setCandidates(candidates);
-        do {
-            candidateEvaluator.evaluate(card, cards,
-                shuffles < 500
-                    ? (deadline - System.currentTimeMillis()) / (500 - shuffles)
-                    : deadline - System.currentTimeMillis()
-            );
-            ++shuffles;
-            numberOfCandidates = prepareNextShuffle(candidates, candidateEvaluator.getCandidates());
-        } while (System.currentTimeMillis() < deadline && numberOfCandidates > 1);
+        for (final CellCandidateEvaluator worker : workers) {
+            worker.copyStateFrom(board, deckTracker, card, candidates, cards);
+            worker.setTimeQuota(shuffles < 500
+                ? (deadline - System.currentTimeMillis()) * workers.size() / (500 - shuffles)
+                : deadline - System.currentTimeMillis());
+            executor.submit(worker);
+        }
+        int numberOfWorkers = workers.size();
+        try {
+            int numberOfCandidates;
+            while (numberOfWorkers > 0) {
+                final CellCandidateEvaluator worker = executor.take().get();
+                --numberOfWorkers;
+                ++shuffles;
+                numberOfCandidates = prepareNextShuffle(candidates, worker.getCandidates());
+                if (numberOfCandidates <= 1 || System.currentTimeMillis() >= deadline) {
+                    continue;
+                }
+                worker.setTimeQuota(shuffles < 500
+                    ? (deadline - System.currentTimeMillis()) * workers.size() / (500 - shuffles)
+                    : deadline - System.currentTimeMillis());
+                executor.submit(worker);
+                ++numberOfWorkers;
+            }
+        } catch (final InterruptedException | ExecutionException ex) {
+            ex.printStackTrace(System.out);
+            System.exit(-1);
+        }
         return shuffles;
     }
 

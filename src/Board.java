@@ -49,7 +49,10 @@ final class Board {
     }
 
     public void copyFrom(final Board board) {
-        Collections.copy(plays, board.plays);
+        plays.clear();
+        for (final Play p : board.plays) {
+            plays.add(p);
+        }
         for (int i = 0; i < SIZE; ++i) {
             rows[i].copyFrom(board.rows[i]);
             cols[i].copyFrom(board.cols[i]);
@@ -128,11 +131,6 @@ final class Board {
         rows[row].putCard(c, col);
         cols[col].putCard(c, row);
         plays.add(new Play(row, col, c));
-    }
-
-    public void putCard(final Card c, final RowCol row, final RowCol col) {
-        rows[row.index].putCard(c, col.index);
-        cols[col.index].putCard(c, row.index);
     }
 
     public Play retractLastPlay() {
