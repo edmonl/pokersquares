@@ -111,7 +111,7 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         if (workers.isEmpty()) {
             shuffles = singleThreadMonteCarlo(card, candidates, deadline);
         } else {
-            shuffles = singleThreadMonteCarlo(card, candidates, deadline);
+            shuffles = multiThreadMonteCarlo(card, candidates, deadline);
         }
         candidates.removeIf(c -> c == null);
         for (final CellCandidate c : candidates) {
