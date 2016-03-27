@@ -136,6 +136,9 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         final List<Card> cards = deckTracker.getCards();
         int shuffles = 0;
         int numberOfCandidates;
+        for (final CellCandidateEvaluator worker : workers) {
+            worker.copyStateFrom(board, deckTracker, card, candidates, cards);
+        }
         candidateEvaluator.setCandidates(candidates);
         do {
             candidateEvaluator.evaluate(card, cards,

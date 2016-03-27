@@ -11,7 +11,7 @@ import util.Linear;
  */
 final class CellCandidateEvaluator implements Callable<List<CellCandidate>> {
 
-    private static final Linear SAMPLE_TIME = new Linear(6, 50, 20, 1000);
+    private static final Linear SAMPLE_TIME = new Linear(6, 100, 20, 1000);
 
     private final Board board;
     private final DeckTracker deck;
