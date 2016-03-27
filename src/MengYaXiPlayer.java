@@ -153,15 +153,17 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         final List<Card> cards = deckTracker.getCards();
         int shuffles = 0;
         do {
-            candidateEvaluator.evaluate(card, candidates, cards.subList(0, board.numberOfEmptyCells() - 1),
-                shuffles < 500 ? millisRemaining - (System.currentTimeMillis() - startMillis) / (500 - shuffles) : millisRemaining - (System.currentTimeMillis() - startMillis));
-            ++shuffles;
-            try {
-                prepareNextShuffle(candidates, candidateEvaluator.call());
-            } catch (final Exception ex) {
-                ex.printStackTrace(System.out);
-                System.exit(-1);
+            final List<CellCandidate> resultCandidates = new ArrayList<>(candidates.size());
+            for (final CellCandidate c : candidates) {
+                resultCandidates.add(new CellCandidate(c.row, c.col));
             }
+            candidateEvaluator.evaluate(card, resultCandidates, cards,
+                shuffles < 500
+                    ? millisRemaining - (System.currentTimeMillis() - startMillis) / (500 - shuffles)
+                    : millisRemaining - (System.currentTimeMillis() - startMillis)
+            );
+            ++shuffles;
+            prepareNextShuffle(candidates, resultCandidates);
         } while (System.currentTimeMillis() - startMillis < millisRemaining && candidates.size() > 1);
         return shuffles;
     }

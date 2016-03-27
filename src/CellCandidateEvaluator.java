@@ -44,21 +44,19 @@ final class CellCandidateEvaluator implements Callable<List<CellCandidate>> {
         millis = 0;
     }
 
-    public void init(final Board board, final DeckTracker deck, final Card card,
-        final List<CellCandidate> candidates, final List<Card> cards, final long millisRemaining) {
+    public void setState(final Card card, final List<Card> cards) {
+        this.card = card;
+        this.cards = new ArrayList<>(cards);
+    }
+
+    public void copyStateFrom(final Board board, final DeckTracker deck, final List<CellCandidate> candidates, final long millisRemaining) {
         this.board.copyFrom(board);
         this.deck.copyFrom(deck);
-        this.card = card;
         this.candidates = new ArrayList<>(candidates.size());
         for (final CellCandidate c : candidates) {
             this.candidates.add(new CellCandidate(c.row, c.col));
         }
-        this.cards = new ArrayList<>(cards);
         this.millis = millisRemaining;
-    }
-
-    public void copyStateFrom(final Board board, final DeckTracker deck, final List<CellCandidate> candidates, final long millisRemaining) {
-
     }
 
     public void evaluate(final Card card, final List<CellCandidate> candidates, final List<Card> cards, final long millisRemaining) {
@@ -68,7 +66,7 @@ final class CellCandidateEvaluator implements Callable<List<CellCandidate>> {
 
     @Override
     public List<CellCandidate> call() throws Exception {
-        testCandidates(card, candidates, cards, millis);
+        evaluate(card, candidates, cards, millis);
         return candidates;
     }
 
