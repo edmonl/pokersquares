@@ -164,30 +164,29 @@ final class Strategy {
                         final RowCol targetRow = rows.get((int) Math.floor(Math.random() * rows.size()));
                         board.putCard(card, targetRow.index, targetCol.index);
                         return true;
+                    }
+                    rows = board.findRows(r -> r.isEmpty(targetCol.index) && r.countRanks() == 1);
+                    if (!rows.isEmpty()) {
+                        if (rows.size() == 1) {
+                            final RowCol targetRow = rows.get(0);
+                            board.putCard(card, targetRow.index, targetCol.index);
+                            return true;
+                        }
+                        for (final RowCol r : rows) {
+                            candidates.add(new CellCandidate(r.index, targetCol.index));
+                        }
                     } else {
-                        rows = board.findRows(r -> r.isEmpty(targetCol.index) && r.countRanks() == 1);
+                        for (int i = 0; i < RowCol.SIZE; ++i) {
+                            if (targetCol.isEmpty(i)) {
+                                candidates.add(new CellCandidate(i, targetCol.index));
+                            }
+                        }
+                        rows = board.findRows(r -> r.countRanks() == 1);
                         if (!rows.isEmpty()) {
-                            if (rows.size() == 1) {
-                                final RowCol targetRow = rows.get(0);
-                                board.putCard(card, targetRow.index, targetCol.index);
-                                return true;
-                            }
                             for (final RowCol r : rows) {
-                                candidates.add(new CellCandidate(r.index, targetCol.index));
-                            }
-                        } else {
-                            for (int i = 0; i < RowCol.SIZE; ++i) {
-                                if (targetCol.isEmpty(i)) {
-                                    candidates.add(new CellCandidate(i, targetCol.index));
-                                }
-                            }
-                            rows = board.findRows(r -> r.countRanks() == 1);
-                            if (!rows.isEmpty()) {
-                                for (final RowCol r : rows) {
-                                    for (final RowCol c : cols) {
-                                        if (c.isEmpty(r.index)) {
-                                            candidates.add(new CellCandidate(r.index, c.index));
-                                        }
+                                for (final RowCol c : cols) {
+                                    if (c.isEmpty(r.index)) {
+                                        candidates.add(new CellCandidate(r.index, c.index));
                                     }
                                 }
                             }

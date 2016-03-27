@@ -1,7 +1,10 @@
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Scanner;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.Executors;
 import util.Linear;
 
 /**
@@ -16,6 +19,8 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
     private final DeckTracker deckTracker = new DeckTracker();
     private final Strategy strategy = new Strategy(board, deckTracker);
     private final CellCandidateEvaluator candidateEvaluator = new CellCandidateEvaluator(board, deckTracker, strategy);
+    private final ExecutorCompletionService executor = new ExecutorCompletionService(Executors.newWorkStealingPool());
+    private final List<CellCandidateEvaluator> workers = new ArrayList<>();
 
     @Override
     public void setPointSystem(final PokerSquaresPointSystem system, final long millis) {
@@ -27,6 +32,14 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
     public void init() {
         candidateEvaluator.clear();
         strategy.verbose = this.verbose;
+        workers.clear();
+        int n = Runtime.getRuntime().availableProcessors();
+        n = n > 2 ? n - 1 : 0;
+        while (workers.size() < n) {
+            final CellCandidateEvaluator worker = new CellCandidateEvaluator();
+            worker.setPointSystem(pointSystem);
+            workers.add(worker);
+        }
         System.gc();
     }
 
@@ -88,32 +101,21 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         if (verbose) {
             System.out.println(String.format("Time Quota: %.2f seconds", millisRemaining / 1000.0));
         }
-
         final long startMillis = System.currentTimeMillis();
-        final List<Card> cards = deckTracker.getCards();
-        int shuffles = 0;
-        while (System.currentTimeMillis() - startMillis < millisRemaining && candidates.size() > 1) {
-            shuffle(cards);
-            ++shuffles;
-            candidateEvaluator.evaluateInPlace(card, candidates, cards.subList(0, board.numberOfEmptyCells() - 1),
-                shuffles < 500 ? millisRemaining - (System.currentTimeMillis() - startMillis) / (500 - shuffles) : millisRemaining - (System.currentTimeMillis() - startMillis));
-            try {
-                candidateEvaluator.call();
-            } catch (final Exception ex) {
-                ex.printStackTrace(System.out);
-                System.exit(-1);
-            }
-            prepareNextShuffle(candidates);
+        int shuffles;
+        if (workers.isEmpty()) {
+            shuffles = singleThreadMonteCarlo(card, candidates, startMillis, millisRemaining);
+        } else {
+            shuffles = multiThreadMonteCarlo(card, candidates, startMillis, millisRemaining);
         }
-        final int rounds = shuffles;
-        candidates.stream().forEach((c) -> {
-            c.average(rounds);
-        });
-        final CellCandidate scoreWinner = Collections.max(candidates, CellCandidate.AVERAGE_SCORE_COMPARATOR);
+        for (final CellCandidate c : candidates) {
+            c.score /= shuffles;
+        }
+        final CellCandidate scoreWinner = Collections.max(candidates, CellCandidate.SCORE_COMPARATOR);
         final CellCandidate qualityWinner = Collections.max(candidates, CellCandidate.QUALITY_COMPARATOR);
         CellCandidate winner = scoreWinner;
         if (qualityWinner != scoreWinner && qualityWinner.quality / scoreWinner.quality >= 2
-            && scoreWinner.getAverageScore() - qualityWinner.getAverageScore() <= 2) {
+            && scoreWinner.score - qualityWinner.score < 2) {
             winner = qualityWinner;
         }
         if (verbose) {
@@ -121,50 +123,76 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
                 shuffles, (System.currentTimeMillis() - startMillis) / 1000.0));
             System.out.print(candidates.size() + " candidates left:");
             candidates.stream().forEach((c) -> {
-                System.out.print(String.format(" (%d,%d: q=%.2f, s=%.2f)", c.row + 1, c.col + 1, c.quality, c.getAverageScore()));
+                System.out.print(String.format(" (%d,%d: q=%.2f, s=%.2f)", c.row + 1, c.col + 1, c.quality, c.score));
             });
             System.out.println();
         }
         return winner;
     }
 
-    private void prepareNextShuffle(final List<CellCandidate> candidates) {
-        int maxRoundScore = candidates.get(0).score;
-        int minRoundScore = maxRoundScore;
-        for (final CellCandidate c : candidates) {
-            if (c.score > maxRoundScore) {
-                maxRoundScore = c.score;
-            } else if (c.score < maxRoundScore) {
-                minRoundScore = c.score;
+    private int singleThreadMonteCarlo(final Card card, final List<CellCandidate> candidates, final long startMillis, final long millisRemaining) {
+        final List<Card> cards = deckTracker.getCards();
+        int shuffles = 0;
+        do {
+            final List<CellCandidate> resultCandidates = new ArrayList<>(candidates.size());
+            for (final CellCandidate c : candidates) {
+                resultCandidates.add(new CellCandidate(c.row, c.col));
+            }
+            candidateEvaluator.evaluate(card, resultCandidates, cards,
+                shuffles < 500
+                    ? millisRemaining - (System.currentTimeMillis() - startMillis) / (500 - shuffles)
+                    : millisRemaining - (System.currentTimeMillis() - startMillis)
+            );
+            ++shuffles;
+            prepareNextShuffle(candidates, resultCandidates);
+        } while (System.currentTimeMillis() - startMillis < millisRemaining && candidates.size() > 1);
+        return shuffles;
+    }
+
+    private int multiThreadMonteCarlo(final Card card, List<CellCandidate> candidates, final long startMillis, final long millisRemaining) {
+        final List<Card> cards = deckTracker.getCards();
+        int shuffles = 0;
+        do {
+            candidateEvaluator.evaluate(card, candidates, cards.subList(0, board.numberOfEmptyCells() - 1),
+                shuffles < 500 ? millisRemaining - (System.currentTimeMillis() - startMillis) / (500 - shuffles) : millisRemaining - (System.currentTimeMillis() - startMillis));
+            ++shuffles;
+            try {
+                prepareNextShuffle(candidates, candidateEvaluator.call());
+            } catch (final Exception ex) {
+                ex.printStackTrace(System.out);
+                System.exit(-1);
+            }
+        } while (System.currentTimeMillis() - startMillis < millisRemaining && candidates.size() > 1);
+        return shuffles;
+    }
+
+    private void prepareNextShuffle(final List<CellCandidate> candidates, final List<CellCandidate> resultCandidates) {
+        double maxRoundScore = resultCandidates.get(0).score;
+        double minRoundScore = maxRoundScore;
+        for (int i = 0; i < candidates.size(); ++i) {
+            final double score = resultCandidates.get(i).score;
+            candidates.get(i).score += score;
+            if (score > maxRoundScore) {
+                maxRoundScore = score;
+            } else if (score < minRoundScore) {
+                minRoundScore = score;
             }
         }
         if (maxRoundScore > minRoundScore) {
             final Linear awardFactor = new Linear(2, 0.0005, 5, 0.005);
             final double award = awardFactor.apply((double) candidates.size());
             final Linear linear = new Linear(minRoundScore, -award, maxRoundScore, award);
-            candidates.stream().forEach((c) -> {
-                c.quality += linear.apply((double) c.score);
-                c.nextRound();
-            });
+            for (int i = 0; i < candidates.size(); ++i) {
+                candidates.get(i).quality += linear.apply(resultCandidates.get(i).score);
+            }
             final double maxQuality = Collections.max(candidates, CellCandidate.QUALITY_COMPARATOR).quality;
             candidates.stream().forEach((c) -> {
                 c.quality /= maxQuality;
             });
             candidates.sort(CellCandidate.REVERSE_QUALITY_COMPARATOR);
-            while (candidates.size() > 1 && candidates.get(candidates.size() - 1).quality <= 1e-5) {
+            while (candidates.size() > 1 && candidates.get(candidates.size() - 1).quality <= 0) {
                 candidates.remove(candidates.size() - 1);
             }
-        } else {
-            candidates.stream().forEach(c -> c.nextRound());
-        }
-    }
-
-    private static void shuffle(final List<Card> cards) {
-        for (int i = cards.size() - 1; i > 0; --i) {
-            final int n = (int) Math.floor(Math.random() * (i + 1));
-            final Card tmpi = cards.get(i);
-            cards.set(i, cards.get(n));
-            cards.set(n, tmpi);
         }
     }
 }

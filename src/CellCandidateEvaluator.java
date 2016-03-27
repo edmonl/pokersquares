@@ -44,22 +44,26 @@ final class CellCandidateEvaluator implements Callable<List<CellCandidate>> {
         millis = 0;
     }
 
-    public void evaluateInPlace(final Card card, final List<CellCandidate> candidates,
-        final List<Card> cards, final long millisRemaining) {
-        this.card = card;
-        this.candidates = candidates;
-        this.cards = cards;
-        this.millis = millisRemaining;
-    }
-
-    public void evaluate(final Board board, final DeckTracker deck, final Card card,
+    public void init(final Board board, final DeckTracker deck, final Card card,
         final List<CellCandidate> candidates, final List<Card> cards, final long millisRemaining) {
         this.board.copyFrom(board);
         this.deck.copyFrom(deck);
         this.card = card;
-        this.candidates = new ArrayList<>(candidates);
-        this.cards = cards;
+        this.candidates = new ArrayList<>(candidates.size());
+        for (final CellCandidate c : candidates) {
+            this.candidates.add(new CellCandidate(c.row, c.col));
+        }
+        this.cards = new ArrayList<>(cards);
         this.millis = millisRemaining;
+    }
+
+    public void copyStateFrom(final Board board, final DeckTracker deck, final List<CellCandidate> candidates, final long millisRemaining) {
+
+    }
+
+    public void evaluate(final Card card, final List<CellCandidate> candidates, final List<Card> cards, final long millisRemaining) {
+        shuffle(cards);
+        testCandidates(card, candidates, cards.subList(0, board.numberOfEmptyCells() - 1), millisRemaining);
     }
 
     @Override
@@ -79,7 +83,7 @@ final class CellCandidateEvaluator implements Callable<List<CellCandidate>> {
         }
     }
 
-    private int fakePlay(final List<Card> cards, final long millisRemaining) {
+    private double fakePlay(final List<Card> cards, final long millisRemaining) {
         final long startMillis = System.currentTimeMillis();
         for (int i = 0; i < cards.size(); ++i) {
             final Card c = cards.get(i);
@@ -143,5 +147,14 @@ final class CellCandidateEvaluator implements Callable<List<CellCandidate>> {
             }
         }
         return candidates.isEmpty() ? null : candidates.get(candidates.size() - 1);
+    }
+
+    private static void shuffle(final List<Card> cards) {
+        for (int i = cards.size() - 1; i > 0; --i) {
+            final int n = (int) Math.floor(Math.random() * (i + 1));
+            final Card tmpi = cards.get(i);
+            cards.set(i, cards.get(n));
+            cards.set(n, tmpi);
+        }
     }
 }
