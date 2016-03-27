@@ -13,6 +13,8 @@ import util.Linear;
  */
 public final class MengYaXiPlayer implements PokerSquaresPlayer {
 
+    private static final Linear QUOTA = new Linear(2, 1, 15, 0.6);
+
     public boolean verbose = false;
     private PokerSquaresPointSystem pointSystem;
     private final Board board = new Board();
@@ -65,17 +67,17 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
             System.out.println();
         }
         CellCandidate winner;
-        final int contingency = 50 * board.numberOfEmptyCells() - 10;
+        final int contingency = 40 * (board.numberOfEmptyCells() - 1);
         strategy.verbose = false;
-        if (millisRemaining <= contingency + 10) {
+        if (millisRemaining < contingency) {
             if (verbose) {
                 System.out.println("No time for trials.");
             }
             winner = candidates.get(0);
         } else {
             millisRemaining -= contingency;
-            winner = monteCarloGuess(card, candidates,
-                Math.max((int) Math.floor(millisRemaining * (-0.04 * board.numberOfEmptyCells() + 1.08)), 1));
+            final long quota = Math.max((long) Math.floor(millisRemaining * QUOTA.apply((double) board.numberOfEmptyCells())), 1);
+            winner = monteCarloGuess(card, candidates, quota);
         }
         strategy.verbose = this.verbose;
         board.putCard(card, winner.row, winner.col);
