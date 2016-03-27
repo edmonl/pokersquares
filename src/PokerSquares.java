@@ -375,9 +375,26 @@ public class PokerSquares {
         systems.add(PokerSquaresPointSystem.getAmericanPointSystem());
         PokerSquares.playTournament(players, systems, 5, System.currentTimeMillis());
          */
+
+        boolean verbose = false;
+        int times = 1;
+        long seed = System.currentTimeMillis();
+        int argn = 0;
+        for (final String arg : args) {
+            if (arg.equals("-v")) {
+                verbose = true;
+            } else if (argn == 0) {
+                times = Integer.parseUnsignedInt(arg);
+                ++argn;
+            } else {
+                seed = Long.parseUnsignedLong(arg);
+                ++argn;
+            }
+        }
+
         final MengYaXiPlayer player = new MengYaXiPlayer();
-        player.verbose = true;
+        player.verbose = verbose;
         final PokerSquares game = new PokerSquares(player, PokerSquaresPointSystem.getAmericanPointSystem());
-        game.playSequence(25, 233333, player.verbose);
+        game.playSequence(times, seed, player.verbose);
     }
 }
