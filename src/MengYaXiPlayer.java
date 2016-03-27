@@ -456,7 +456,7 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         for (final Candidate c : candidates) {
             if (c.getRoundScore() > maxRoundScore) {
                 maxRoundScore = c.getRoundScore();
-            } else if (c.getRoundScore() < maxRoundScore) {
+            } else if (c.getRoundScore() < minRoundScore) {
                 minRoundScore = c.getRoundScore();
             }
         }
