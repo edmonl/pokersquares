@@ -237,7 +237,7 @@ final class Strategy {
         }
         // remove very bad ones
         final double max = candidates.get(0).quality;
-        while (candidates.size() > 5 || candidates.get(candidates.size() - 1).quality + 10 < max) {
+        while (candidates.size() > 6 || candidates.get(candidates.size() - 1).quality + 10 < max) {
             candidates.remove(candidates.size() - 1);
         }
         if (candidates.size() == 1) {
