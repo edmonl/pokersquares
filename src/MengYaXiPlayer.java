@@ -16,7 +16,7 @@ import util.Linear;
 public final class MengYaXiPlayer implements PokerSquaresPlayer {
 
     private static final Linear QUOTA = new Linear(2, 1, 15, 0.46);
-    private static final Linear AWARD_FACTOR = new Linear(2, 0.002, 5, 0.015);
+    private static final Linear AWARD_FACTOR = new Linear(2, 0.001, 6, 0.02);
 
     public boolean verbose = false;
     public boolean parallel = true;
