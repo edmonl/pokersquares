@@ -40,9 +40,11 @@ class RowCol {
     public final double scoreCard(final Card card, final int pos,
         final PokerSquaresPointSystem pointSystem, final Board board, final DeckTracker deck) {
         final double score0 = score(pointSystem, board, deck);
+        deck.deal(card);
         putCard(card, pos);
         final double score1 = score(pointSystem, board, deck);
         removeCard(pos);
+        deck.putBack(card);
         return score1 - score0;
     }
 

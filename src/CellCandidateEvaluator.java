@@ -82,6 +82,7 @@ final class CellCandidateEvaluator implements Callable<CellCandidateEvaluator> {
         }
         int numberOfProcessed = 0;
         final List<Card> remainingCards = cards.subList(0, board.numberOfEmptyCells() - 1);
+        deck.deal(card);
         for (int i = 0; i < candidates.size(); ++i) {
             final CellCandidate c = candidates.get(i);
             if (c != null) {
@@ -91,6 +92,7 @@ final class CellCandidateEvaluator implements Callable<CellCandidateEvaluator> {
                 ++numberOfProcessed;
             }
         }
+        deck.putBack(card);
     }
 
     @Override
@@ -102,31 +104,36 @@ final class CellCandidateEvaluator implements Callable<CellCandidateEvaluator> {
     private void testCandidates(final Card card, final List<CellCandidate> candidates,
         final List<Card> cards, final long millisRemaining) {
         final long deadline = System.currentTimeMillis() + millisRemaining;
+        deck.deal(card);
         for (int i = 0; i < candidates.size(); ++i) {
             final CellCandidate c = candidates.get(i);
             board.putCard(card, c.row, c.col);
             c.score = fakePlay(cards, (deadline - System.currentTimeMillis()) / (candidates.size() - i));
             board.retractLastPlay();
         }
+        deck.putBack(card);
     }
 
     private double fakePlay(final List<Card> cards, final long millisRemaining) {
         final long deadline = System.currentTimeMillis() + millisRemaining;
         for (int i = 0; i < cards.size(); ++i) {
             final Card c = cards.get(i);
-            deck.deal(c);
-            if (!strategy.play(c)) {
-                final List<CellCandidate> cans = strategy.getCandidates();
-                final int remainingCards = cards.size() - i - 1;
-                if (remainingCards > 5 && System.currentTimeMillis() + SAMPLE_TIME.apply((double) remainingCards) > deadline) {
-                    sampleCandidates(c, cans, cards.subList(i + 1, cards.size()), deadline - System.currentTimeMillis());
-                } else {
-                    testCandidates(c, cans, cards.subList(i + 1, cards.size()), deadline - System.currentTimeMillis());
-                }
-                deck.putBack(c);
-                retract(i);
-                return Collections.max(cans, CellCandidate.SCORE_COMPARATOR).score;
+            strategy.play(c);
+            final List<CellCandidate> cans = strategy.getCandidates();
+            if (cans.size() == 1) {
+                final CellCandidate can = cans.get(0);
+                deck.deal(c);
+                board.putCard(c, can.row, can.col);
+                continue;
             }
+            final int remainingCards = cards.size() - i - 1;
+            if (remainingCards > 5 && System.currentTimeMillis() + SAMPLE_TIME.apply((double) remainingCards) > deadline) {
+                sampleCandidates(c, cans, cards.subList(i + 1, cards.size()), deadline - System.currentTimeMillis());
+            } else {
+                testCandidates(c, cans, cards.subList(i + 1, cards.size()), deadline - System.currentTimeMillis());
+            }
+            retract(i);
+            return Collections.max(cans, CellCandidate.SCORE_COMPARATOR).score;
         }
         final int score = board.getPokerHandScore(strategy.getPointSystem());
         retract(cards.size());
@@ -137,6 +144,7 @@ final class CellCandidateEvaluator implements Callable<CellCandidateEvaluator> {
         final List<Card> cards, final long millisRemaining) {
         final long deadline = System.currentTimeMillis() + millisRemaining;
         int numberOfSamples = 0;
+        deck.deal(card);
         do {
             for (final CellCandidate c : candidates) {
                 board.putCard(card, c.row, c.col);
@@ -148,15 +156,16 @@ final class CellCandidateEvaluator implements Callable<CellCandidateEvaluator> {
             }
             ++numberOfSamples;
         } while (numberOfSamples < 100 || System.currentTimeMillis() < deadline);
+        deck.putBack(card);
     }
 
     private int randomPlay(final List<Card> cards) {
         for (final Card c : cards) {
+            strategy.play(c);
+            final List<CellCandidate> cans = strategy.getCandidates();
+            final CellCandidate can = cans.size() == 1 ? cans.get(0) : selectCandidateRandomly(cans);
             deck.deal(c);
-            if (!strategy.play(c)) {
-                final CellCandidate can = selectCandidateRandomly(strategy.getCandidates());
-                board.putCard(c, can.row, can.col);
-            }
+            board.putCard(c, can.row, can.col);
         }
         final int score = board.getPokerHandScore(strategy.getPointSystem());
         retract(cards.size());

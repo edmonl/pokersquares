@@ -37,33 +37,29 @@ final class Strategy {
         return new ArrayList<>(candidates);
     }
 
-    public int getNumberOfCandidates() {
-        return candidates.size();
-    }
-
     /**
      *
      * @param card
      * @param out The strategic play
      * @return Quality of the strategic play.
      */
-    public boolean play(final Card card) {
+    public void play(final Card card) {
         candidates.clear();
         if (board.isEmpty()) {
-            board.putCard(card, 0, card.getSuit());
-            return true;
+            candidates.add(new CellCandidate(0, card.getSuit()));
+            return;
         }
         if (board.numberOfEmptyCells() == 1) {
             final Board.Cell cell = board.findFirstEmptyCell();
-            board.putCard(card, cell.row, cell.col);
-            return true;
+            candidates.add(new CellCandidate(cell.row, cell.col));
+            return;
         }
         RowCol row = board.findFirstEmptyRow();
         if (row != null) {
             for (final Board.Play play : board.getPastPlays()) {
                 if (play.card.getRank() == card.getRank()) {
-                    board.putCard(card, play.row, card.getSuit());
-                    return true;
+                    candidates.add(new CellCandidate(play.row, card.getSuit()));
+                    return;
                 }
             }
             RowCol col = board.getCol(card.getSuit());
@@ -71,12 +67,12 @@ final class Strategy {
                 || !col.hasStraightPotential()
                 || col.hasStraightPotential(card)) {
                 final RowCol targetCol = col;
-                board.putCard(card, row.index, targetCol.index);
+                candidates.add(new CellCandidate(row.index, targetCol.index));
             } else {
                 final RowCol targetCol = board.getCol(row.lastPosition());
-                board.putCard(card, row.index, targetCol.index);
+                candidates.add(new CellCandidate(row.index, targetCol.index));
             }
-            return true;
+            return;
         }
         List<RowCol> rows = board.findRows(r -> r.hasRank(card.getRank()));
         if (!rows.isEmpty()) {
@@ -97,8 +93,8 @@ final class Strategy {
                             || cols.get(1).numberOfCards() < targetCol.numberOfCards()
                             && (targetCol.numberOfCards() <= 2 || !targetCol.hasStraightPotential())) {
                             if (targetRow.isEmpty(targetCol.index)) {
-                                board.putCard(card, targetRow.index, targetCol.index);
-                                return true;
+                                candidates.add(new CellCandidate(targetRow.index, targetCol.index));
+                                return;
                             }
                         }
                         if (cols.stream().allMatch(c -> !c.isEmpty(targetRow.index))) {
@@ -128,8 +124,8 @@ final class Strategy {
                             }
                             for (final RowCol targetCol : cols) {
                                 if (targetRow.isEmpty(targetCol.index)) {
-                                    board.putCard(card, targetRow.index, targetCol.index);
-                                    return true;
+                                    candidates.add(new CellCandidate(targetRow.index, targetCol.index));
+                                    return;
                                 }
                             }
                         }
@@ -161,15 +157,15 @@ final class Strategy {
                             }
                         }
                         final RowCol targetRow = rows.get((int) Math.floor(Math.random() * rows.size()));
-                        board.putCard(card, targetRow.index, targetCol.index);
-                        return true;
+                        candidates.add(new CellCandidate(targetRow.index, targetCol.index));
+                        return;
                     }
                     rows = board.findRows(r -> r.isEmpty(targetCol.index) && r.countRanks() == 1);
                     if (!rows.isEmpty()) {
                         if (rows.size() == 1) {
                             final RowCol targetRow = rows.get(0);
-                            board.putCard(card, targetRow.index, targetCol.index);
-                            return true;
+                            candidates.add(new CellCandidate(targetRow.index, targetCol.index));
+                            return;
                         }
                         for (final RowCol r : rows) {
                             candidates.add(new CellCandidate(r.index, targetCol.index));
@@ -204,6 +200,9 @@ final class Strategy {
                 }
             }
         }
+        if (candidates.size() == 1) {
+            return;
+        }
         if (candidates.isEmpty()) {
             boolean hasEmptyColumn = false; // don't add two empty columns
             for (int c = 0; c < Board.SIZE; ++c) {
@@ -218,11 +217,6 @@ final class Strategy {
                     }
                 }
             }
-        } else if (candidates.size() == 1) {
-            final CellCandidate c = candidates.get(0);
-            board.putCard(card, c.row, c.col);
-            candidates.clear();
-            return true;
         }
         candidates.stream().forEach((c) -> {
             c.quality = board.getRow(c.row).scoreCard(card, c.col, pointSystem, board, deckTracker)
@@ -242,10 +236,7 @@ final class Strategy {
             candidates.remove(candidates.size() - 1);
         }
         if (candidates.size() == 1) {
-            final CellCandidate c = candidates.get(0);
-            board.putCard(card, c.row, c.col);
-            candidates.clear();
-            return true;
+            return;
         }
         final double boardScore = board.score(pointSystem, deckTracker);
         max += boardScore;
@@ -258,6 +249,5 @@ final class Strategy {
         for (final CellCandidate c : candidates) {
             c.p /= acc;
         }
-        return false;
     }
 }

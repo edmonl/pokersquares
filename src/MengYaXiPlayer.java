@@ -54,39 +54,37 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
 
     @Override
     public int[] getPlay(final Card card, long millisRemaining) {
-        deckTracker.deal(card);
         if (verbose) {
             System.out.println(String.format("Get card \"%s\". Remaining seconds: %.2f", card, millisRemaining / 1000.0));
         }
-        if (strategy.play(card)) {
-            final Board.Play p = board.getLastPlay();
-            if (verbose) {
-                System.out.println(String.format("Play \"%s\" at (%d, %d)", card, p.row + 1, p.col + 1));
-            }
-            return new int[]{p.row, p.col};
-        }
-        final List<CellCandidate> candidates = strategy.getCandidates();
-        if (verbose) {
-            System.out.print(candidates.size() + " candidates: ");
-            candidates.stream().forEach((c) -> {
-                System.out.print(String.format(" (%d,%d: q=%.2f, p=%.2f)", c.row + 1, c.col + 1, c.quality, c.p));
-            });
-            System.out.println();
-        }
+        strategy.play(card);
+        final List<CellCandidate> cans = strategy.getCandidates();
         CellCandidate winner;
-        final int contingency = 50 * board.numberOfEmptyCells() - 70;
-        strategy.verbose = false;
-        if (millisRemaining < contingency) {
-            if (verbose) {
-                System.out.println("No time for trials.");
-            }
-            winner = candidates.get(0);
+        if (cans.size() == 1) {
+            winner = cans.get(0);
         } else {
-            millisRemaining -= contingency;
-            final long quota = Math.max((long) Math.floor(millisRemaining * QUOTA.apply((double) board.numberOfEmptyCells())), 1);
-            winner = monteCarloGuess(card, candidates, quota);
+            if (verbose) {
+                System.out.print(cans.size() + " candidates: ");
+                cans.stream().forEach((c) -> {
+                    System.out.print(String.format(" (%d,%d: q=%.2f, p=%.2f)", c.row + 1, c.col + 1, c.quality, c.p));
+                });
+                System.out.println();
+            }
+            final int contingency = 50 * board.numberOfEmptyCells() - 70;
+            strategy.verbose = false;
+            if (millisRemaining < contingency) {
+                if (verbose) {
+                    System.out.println("No time for trials.");
+                }
+                winner = cans.get(0);
+            } else {
+                millisRemaining -= contingency;
+                final long quota = Math.max((long) Math.floor(millisRemaining * QUOTA.apply((double) board.numberOfEmptyCells())), 1);
+                winner = monteCarloGuess(card, cans, quota);
+            }
+            strategy.verbose = this.verbose;
         }
-        strategy.verbose = this.verbose;
+        deckTracker.deal(card);
         board.putCard(card, winner.row, winner.col);
         if (verbose) {
             System.out.println(String.format("Play \"%s\" at (%d, %d)", card, winner.row + 1, winner.col + 1));
@@ -113,10 +111,13 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         final long startMillis = System.currentTimeMillis();
         final long deadline = startMillis + millisRemaining;
         int shuffles;
+        deckTracker.deal(card);
+        final List<Card> cards = deckTracker.getCards();
+        deckTracker.putBack(card);
         if (workers.isEmpty()) {
-            shuffles = singleThreadMonteCarlo(card, candidates, deadline);
+            shuffles = singleThreadMonteCarlo(card, cards, candidates, deadline);
         } else {
-            shuffles = multiThreadMonteCarlo(card, candidates, deadline);
+            shuffles = multiThreadMonteCarlo(card, cards, candidates, deadline);
         }
         candidates.removeIf(c -> c == null);
         for (final CellCandidate c : candidates) {
@@ -135,8 +136,7 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         return winner;
     }
 
-    private int singleThreadMonteCarlo(final Card card, final List<CellCandidate> candidates, final long deadline) {
-        final List<Card> cards = deckTracker.getCards();
+    private int singleThreadMonteCarlo(final Card card, final List<Card> cards, final List<CellCandidate> candidates, final long deadline) {
         int shuffles = 0;
         int numberOfCandidates;
         candidateEvaluator.setCandidates(candidates);
@@ -152,12 +152,11 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         return shuffles;
     }
 
-    private int multiThreadMonteCarlo(final Card card, List<CellCandidate> candidates, final long deadline) {
+    private int multiThreadMonteCarlo(final Card card, final List<Card> cards, final List<CellCandidate> candidates, final long deadline) {
         if (verbose) {
             System.out.println(String.format("%d workers are working", workers.size()));
         }
         final long start = System.currentTimeMillis();
-        final List<Card> cards = deckTracker.getCards();
         int shuffles = 0;
         for (final CellCandidateEvaluator worker : workers) {
             worker.copyStateFrom(board, deckTracker, card, candidates, cards);
