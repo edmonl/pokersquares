@@ -1,7 +1,6 @@
 
 import java.util.ArrayList;
 import java.util.List;
-import util.Linear;
 import util.Pokers;
 
 /**
@@ -248,17 +247,9 @@ final class Strategy {
             candidates.clear();
             return true;
         }
-        final double min = candidates.get(candidates.size() - 1).quality;
-        if (max - min > 1e-5) { // gently bias to better candidates
-            final Linear linear = new Linear(min, 1.0, max, 2.0);
-            candidates.stream().forEach((c) -> {
-                c.quality = linear.apply(c.quality) / 2.0;
-            });
-        } else {
-            candidates.stream().forEach((c) -> {
-                c.quality = 0.5;
-            });
-        }
+        candidates.stream().forEach((c) -> {
+            c.quality = 1.0;
+        });
         return false;
     }
 }
