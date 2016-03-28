@@ -27,7 +27,7 @@ final class CellCandidate {
     };
 
     public final int row, col;
-    public double quality = 0.0;
+    public double quality = 0.0, p = 0.0;
     public double score = 0; // we don't have negtive score
 
     public CellCandidate(final int row, final int col) {

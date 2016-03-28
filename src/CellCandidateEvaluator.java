@@ -128,7 +128,7 @@ final class CellCandidateEvaluator implements Callable<CellCandidateEvaluator> {
                 return Collections.max(cans, CellCandidate.SCORE_COMPARATOR).score;
             }
         }
-        final int score = board.getScore(strategy.getPointSystem());
+        final int score = board.getPokerHandScore(strategy.getPointSystem());
         retract(cards.size());
         return score;
     }
@@ -158,7 +158,7 @@ final class CellCandidateEvaluator implements Callable<CellCandidateEvaluator> {
                 board.putCard(c, can.row, can.col);
             }
         }
-        final int score = board.getScore(strategy.getPointSystem());
+        final int score = board.getPokerHandScore(strategy.getPointSystem());
         retract(cards.size());
         return score;
     }
@@ -170,9 +170,13 @@ final class CellCandidateEvaluator implements Callable<CellCandidateEvaluator> {
     }
 
     private static CellCandidate selectCandidateRandomly(final List<CellCandidate> candidates) {
-        int n = (int) Math.floor(candidates.size() * Math.random());
-        n = n >= candidates.size() ? candidates.size() - 1 : n;
-        return candidates.get(n);
+        final double r = Math.random();
+        for (final CellCandidate c : candidates) {
+            if (r <= c.p) {
+                return c;
+            }
+        }
+        return candidates.get(candidates.size() - 1);
     }
 
     private static void shuffle(final List<Card> cards) {

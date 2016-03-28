@@ -237,8 +237,8 @@ final class Strategy {
             System.out.println();
         }
         // remove very bad ones
-        final double max = candidates.get(0).quality;
-        while (candidates.size() > 6 || candidates.get(candidates.size() - 1).quality + 10 < max) {
+        double max = candidates.get(0).quality;
+        while (candidates.size() > 6 || candidates.get(candidates.size() - 1).quality + 10 <= max) {
             candidates.remove(candidates.size() - 1);
         }
         if (candidates.size() == 1) {
@@ -247,9 +247,17 @@ final class Strategy {
             candidates.clear();
             return true;
         }
-        candidates.stream().forEach((c) -> {
-            c.quality = 1.0;
-        });
+        final double boardScore = board.score(pointSystem, deckTracker);
+        max += boardScore;
+        double acc = 0.0;
+        for (final CellCandidate c : candidates) {
+            c.quality = (c.quality + boardScore) / max;
+            acc += c.quality;
+            c.p = acc;
+        }
+        for (final CellCandidate c : candidates) {
+            c.p /= acc;
+        }
         return false;
     }
 }

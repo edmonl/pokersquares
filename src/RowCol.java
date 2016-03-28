@@ -112,6 +112,99 @@ class RowCol {
         return score1 - score0;
     }
 
+    public final double score(final PokerSquaresPointSystem pointSystem, final Board board, final DeckTracker deck) {
+        final PokerHand hand = getPokerHand();
+        final int handScore = pointSystem.getHandScore(hand);
+        final double progress = board.progress();
+        if (isEmpty()) {
+            return 1.45;
+        }
+        if (numberOfCards >= SIZE) {
+            return handScore;
+        }
+        final Card card = getAnyCard();
+        final int suit0 = card.getSuit();
+        final int rank0 = card.getRank();
+        final boolean isFlush = suitCount == 1;
+        final boolean isStraight = hasStraightPotential();
+        final boolean isRoyal = isFlush && isStraight && rankRange[0] > Card.NUM_RANKS - SIZE;
+        switch (numberOfCards) {
+            case 4:
+                switch (hand) {
+                    case FOUR_OF_A_KIND:
+                        return 51;
+                    case THREE_OF_A_KIND: {
+                        int goodRank = rank0, otherRank = rank0;
+                        if (countRank(rank0) == 1) {
+                            goodRank = getAnotherRank(rank0);
+                        } else {
+                            otherRank = getAnotherRank(rank0);
+                        }
+                        return deck.hasRank(goodRank) ? 10.9 + 2.5 * deck.countRank(otherRank) : 10.9 + deck.countRank(otherRank);
+                    }
+                    case TWO_PAIR:
+                        return 9.1;
+                    case ONE_PAIR:
+                        return 2.99;
+                    default:
+                        if (isRoyal) {
+                            if (ranks[0] > 0) {
+                                for (int rank = Card.NUM_RANKS - SIZE + 1; rank < Card.NUM_RANKS; ++rank) {
+                                    if (ranks[rank] == 0) {
+                                        return deck.hasCard(rank, suit0) ? 14.9 - 2.9 * progress : 14 - 2 * progress;
+                                    }
+                                }
+                                throw new IllegalStateException();
+                            } else {
+                                return deck.hasCard(0, suit0) ? 14.9 - 2.9 * progress
+                                    : (deck.hasCard(Card.NUM_RANKS - SIZE, suit0)
+                                    ? 14.8 - 2.8 * progress : 14 - 2 * progress);
+                            }
+                        }
+                        if (isFlush) {
+                            return isStraight ? 14.9 : 14 - 2 * progress;
+                        }
+                        if (isStraight) {
+                            int n = 0;
+                            int rank = rankRange[0];
+                            int rankEnd = rankRange[1] + 1;
+                            if (rankEnd - rank < SIZE) {
+                                if (rank > 0) {
+                                    --rank;
+                                }
+                                if (rankEnd < Card.NUM_RANKS) {
+                                    ++rankEnd;
+                                }
+                            }
+                            for (; rank < rankEnd; ++rank) {
+                                if (ranks[rank] > 0) {
+                                    n += deck.countRank(rank);
+                                }
+                            }
+                            return n * 0.9 + 1.1;
+                        }
+                        return 1.1;
+                }
+            case 3:
+                switch (hand) {
+                    case THREE_OF_A_KIND:
+                        return deck.hasRank(rank0) ? 14 : 11.9;
+                    case ONE_PAIR:
+                        return 4.35;
+                    default:
+                        return isFlush ? (1 - progress) * 4 + 5.9 : (isStraight ? 2.7 - 0.6 * progress : 2.1);
+                }
+            case 2:
+                switch (hand) {
+                    case ONE_PAIR:
+                        return 4.4;
+                    default:
+                        return isFlush ? (1 - progress) * 4 + 4.5 : (isStraight ? 2.5 - 0.3 * progress : 2.2);
+                }
+        }
+        return 1.9;
+    }
+
     public final boolean hasStraightPotential() {
         if (numberOfCards <= 1) {
             return true;
@@ -319,98 +412,5 @@ class RowCol {
                 }
             }
         }
-    }
-
-    private double score(final PokerSquaresPointSystem pointSystem, final Board board, final DeckTracker deck) {
-        final PokerHand hand = getPokerHand();
-        final int handScore = pointSystem.getHandScore(hand);
-        final double progress = board.progress();
-        if (isEmpty()) {
-            return 1.45;
-        }
-        if (numberOfCards >= SIZE) {
-            return handScore;
-        }
-        final Card card = getAnyCard();
-        final int suit0 = card.getSuit();
-        final int rank0 = card.getRank();
-        final boolean isFlush = suitCount == 1;
-        final boolean isStraight = hasStraightPotential();
-        final boolean isRoyal = isFlush && isStraight && rankRange[0] > Card.NUM_RANKS - SIZE;
-        switch (numberOfCards) {
-            case 4:
-                switch (hand) {
-                    case FOUR_OF_A_KIND:
-                        return 51;
-                    case THREE_OF_A_KIND: {
-                        int goodRank = rank0, otherRank = rank0;
-                        if (countRank(rank0) == 1) {
-                            goodRank = getAnotherRank(rank0);
-                        } else {
-                            otherRank = getAnotherRank(rank0);
-                        }
-                        return deck.hasRank(goodRank) ? 10.9 + 2.5 * deck.countRank(otherRank) : 10.9 + deck.countRank(otherRank);
-                    }
-                    case TWO_PAIR:
-                        return 9.1;
-                    case ONE_PAIR:
-                        return 2.99;
-                    default:
-                        if (isRoyal) {
-                            if (ranks[0] > 0) {
-                                for (int rank = Card.NUM_RANKS - SIZE + 1; rank < Card.NUM_RANKS; ++rank) {
-                                    if (ranks[rank] == 0) {
-                                        return deck.hasCard(rank, suit0) ? 14.9 - 2.9 * progress : 14 - 2 * progress;
-                                    }
-                                }
-                                throw new IllegalStateException();
-                            } else {
-                                return deck.hasCard(0, suit0) ? 14.9 - 2.9 * progress
-                                    : (deck.hasCard(Card.NUM_RANKS - SIZE, suit0)
-                                    ? 14.8 - 2.8 * progress : 14 - 2 * progress);
-                            }
-                        }
-                        if (isFlush) {
-                            return isStraight ? 14.9 : 14 - 2 * progress;
-                        }
-                        if (isStraight) {
-                            int n = 0;
-                            int rank = rankRange[0];
-                            int rankEnd = rankRange[1] + 1;
-                            if (rankEnd - rank < SIZE) {
-                                if (rank > 0) {
-                                    --rank;
-                                }
-                                if (rankEnd < Card.NUM_RANKS) {
-                                    ++rankEnd;
-                                }
-                            }
-                            for (; rank < rankEnd; ++rank) {
-                                if (ranks[rank] > 0) {
-                                    n += deck.countRank(rank);
-                                }
-                            }
-                            return n * 0.9 + 1.1;
-                        }
-                        return 1.1;
-                }
-            case 3:
-                switch (hand) {
-                    case THREE_OF_A_KIND:
-                        return deck.hasRank(rank0) ? 14 : 11.9;
-                    case ONE_PAIR:
-                        return 4.35;
-                    default:
-                        return isFlush ? (1 - progress) * 4 + 5.9 : (isStraight ? 2.7 - 0.6 * progress : 2.1);
-                }
-            case 2:
-                switch (hand) {
-                    case ONE_PAIR:
-                        return 4.4;
-                    default:
-                        return isFlush ? (1 - progress) * 4 + 4.5 : (isStraight ? 2.5 - 0.3 * progress : 2.2);
-                }
-        }
-        return 1.9;
     }
 }

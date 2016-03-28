@@ -95,13 +95,24 @@ final class Board {
         return cells;
     }
 
-    public int getScore(final PokerSquaresPointSystem pointSystem) {
+    public int getPokerHandScore(final PokerSquaresPointSystem pointSystem) {
         int score = 0;
         for (final RowCol r : rows) {
             score += r.getPokerHandScore(pointSystem);
         }
         for (final RowCol c : cols) {
             score += c.getPokerHandScore(pointSystem);
+        }
+        return score;
+    }
+
+    public double score(final PokerSquaresPointSystem pointSystem, final DeckTracker deck) {
+        double score = 0.0;
+        for (final RowCol r : rows) {
+            score += r.score(pointSystem, this, deck);
+        }
+        for (final RowCol c : cols) {
+            score += c.score(pointSystem, this, deck);
         }
         return score;
     }

@@ -69,7 +69,7 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         if (verbose) {
             System.out.print(candidates.size() + " candidates: ");
             candidates.stream().forEach((c) -> {
-                System.out.print(String.format(" (%d,%d: q=%.2f)", c.row + 1, c.col + 1, c.quality));
+                System.out.print(String.format(" (%d,%d: q=%.2f, p=%.2f)", c.row + 1, c.col + 1, c.quality, c.p));
             });
             System.out.println();
         }
@@ -122,7 +122,7 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         for (final CellCandidate c : candidates) {
             c.score /= shuffles;
         }
-        final CellCandidate winner = Collections.max(candidates, CellCandidate.QUALITY_COMPARATOR);
+        final CellCandidate winner = Collections.max(candidates, CellCandidate.SCORE_COMPARATOR);
         if (verbose) {
             System.out.println(String.format("%d shuffles completed within %.2f seconds",
                 shuffles, (System.currentTimeMillis() - startMillis) / 1000.0));
@@ -136,7 +136,6 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
     }
 
     private int singleThreadMonteCarlo(final Card card, final List<CellCandidate> candidates, final long deadline) {
-        final long start = System.currentTimeMillis();
         final List<Card> cards = deckTracker.getCards();
         int shuffles = 0;
         int numberOfCandidates;
@@ -150,9 +149,6 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
             ++shuffles;
             numberOfCandidates = prepareNextShuffle(candidates, candidateEvaluator.getCandidates());
         } while (System.currentTimeMillis() < deadline && numberOfCandidates > 1);
-        if (verbose) {
-            System.out.println(String.format("%.2f shuffles per second", shuffles * 1000.0 / (System.currentTimeMillis() - start)));
-        }
         return shuffles;
     }
 
@@ -192,9 +188,6 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
             ex.printStackTrace(System.out);
             System.exit(-1);
         }
-        if (verbose) {
-            System.out.println(String.format("%.2f shuffles per second", shuffles * 1000.0 / (System.currentTimeMillis() - start)));
-        }
         return shuffles;
     }
 
@@ -223,7 +216,7 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
                 } else if (resultCandidates.get(i).score < avg - 1e-6) {
                     c.quality -= award;
                 }
-                if (c.quality <= 0) {
+                if (c.quality <= 0.1) {
                     candidates.set(i, null);
                     resultCandidates.set(i, null);
                     --numberOfCandidates;
