@@ -96,11 +96,14 @@ final class Board {
     }
 
     public int getPokerHandScore(final PokerSquaresPointSystem pointSystem) {
+        if (numberOfCards() != NUMBER_OF_CELLS) {
+            throw new IllegalStateException();
+        }
         int score = 0;
-        for (final RowCol r : rows) {
+        for (final RowColRecord r : rows) {
             score += r.getPokerHandScore(pointSystem);
         }
-        for (final RowCol c : cols) {
+        for (final RowColRecord c : cols) {
             score += c.getPokerHandScore(pointSystem);
         }
         return score;
