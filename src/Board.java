@@ -1,7 +1,6 @@
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -171,10 +170,6 @@ final class Board {
 
     public Play getLastPlay() {
         return plays.get(plays.size() - 1);
-    }
-
-    public List<Play> getPastPlays() {
-        return Collections.unmodifiableList(plays);
     }
 
     public RowCol findFirstEmptyRow() {

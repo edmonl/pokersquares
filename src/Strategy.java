@@ -54,23 +54,20 @@ final class Strategy {
             candidates.add(new CellCandidate(cell.row, cell.col));
             return;
         }
-        RowCol row = board.findFirstEmptyRow();
-        if (row != null) {
-            for (final Board.Play play : board.getPastPlays()) {
-                if (play.card.getRank() == card.getRank()) {
-                    candidates.add(new CellCandidate(play.row, card.getSuit()));
-                    return;
-                }
+        if (board.getRow(Board.SIZE - 1).isEmpty()) {
+            if (board.hasRank(card.getRank())) {
+                final RowCol targetRow = board.findFirstRow(r -> r.hasRank(card.getRank()));
+                candidates.add(new CellCandidate(targetRow.index, card.getSuit()));
+                return;
             }
-            RowCol col = board.getCol(card.getSuit());
+            final RowCol targetRow = board.findFirstEmptyRow();
+            final RowCol col = board.getCol(card.getSuit());
             if (col.numberOfCards() < 4
                 || !col.hasStraightPotential()
                 || col.hasStraightPotential(card)) {
-                final RowCol targetCol = col;
-                candidates.add(new CellCandidate(row.index, targetCol.index));
+                candidates.add(new CellCandidate(targetRow.index, col.index));
             } else {
-                final RowCol targetCol = board.getCol(row.lastPosition());
-                candidates.add(new CellCandidate(row.index, targetCol.index));
+                candidates.add(new CellCandidate(targetRow.index, targetRow.lastPosition()));
             }
             return;
         }
