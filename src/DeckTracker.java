@@ -34,7 +34,12 @@ final class DeckTracker implements Iterable<Card> {
     private int numberOfCards;
 
     public DeckTracker() {
-        reset();
+        clear();
+    }
+
+    public void copyFrom(final DeckTracker deck) {
+        System.arraycopy(deck.bookkeepingByCardId, 0, bookkeepingByCardId, 0, Card.NUM_CARDS);
+        numberOfCards = deck.numberOfCards;
     }
 
     public int getNumberOfCards() {
@@ -108,7 +113,7 @@ final class DeckTracker implements Iterable<Card> {
         bookkeepingByCardId[cardId] = true;
     }
 
-    public final void reset() {
+    public final void clear() {
         Arrays.fill(bookkeepingByCardId, true);
         numberOfCards = bookkeepingByCardId.length;
     }

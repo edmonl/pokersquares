@@ -1,6 +1,6 @@
 
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -40,6 +40,7 @@ final class Board {
     private final List<Play> plays = new ArrayList<>(NUMBER_OF_CELLS);
     private final RowColRecord[] rows = new RowColRecord[SIZE];
     private final RowColRecord[] cols = new RowColRecord[SIZE];
+    private final int[] ranks = new int[Card.NUM_RANKS];
 
     public Board() {
         for (int i = 0; i < SIZE; ++i) {
@@ -48,12 +49,25 @@ final class Board {
         }
     }
 
+    public void copyFrom(final Board board) {
+        plays.clear();
+        for (final Play p : board.plays) {
+            plays.add(p);
+        }
+        for (int i = 0; i < SIZE; ++i) {
+            rows[i].copyFrom(board.rows[i]);
+            cols[i].copyFrom(board.cols[i]);
+        }
+        System.arraycopy(board.ranks, 0, ranks, 0, Card.NUM_RANKS);
+    }
+
     public void clear() {
         plays.clear();
         for (int i = 0; i < SIZE; ++i) {
             rows[i].clear();
             cols[i].clear();
         }
+        Arrays.fill(ranks, 0);
     }
 
     public boolean isEmpty() {
@@ -84,13 +98,28 @@ final class Board {
         return cells;
     }
 
-    public int getScore(final PokerSquaresPointSystem pointSystem) {
+    public int getPokerHandScore(final PokerSquaresPointSystem pointSystem) {
+        if (numberOfCards() != NUMBER_OF_CELLS) {
+            throw new IllegalStateException();
+        }
         int score = 0;
-        for (final RowCol r : rows) {
+        for (final RowColRecord r : rows) {
             score += r.getPokerHandScore(pointSystem);
         }
-        for (final RowCol c : cols) {
+        for (final RowColRecord c : cols) {
             score += c.getPokerHandScore(pointSystem);
+        }
+        return score;
+    }
+
+    public double score(final PokerSquaresPointSystem pointSystem, final DeckTracker deck) {
+        final double progress = progress();
+        double score = 0.0;
+        for (final RowCol r : rows) {
+            score += r.score(pointSystem, progress, deck);
+        }
+        for (final RowCol c : cols) {
+            score += c.score(pointSystem, progress, deck);
         }
         return score;
     }
@@ -116,39 +145,31 @@ final class Board {
         return (double) plays.size() / NUMBER_OF_CELLS;
     }
 
+    public boolean hasRank(final int rank) {
+        return ranks[rank] > 0;
+    }
+
+    public int countRank(final int rank) {
+        return ranks[rank];
+    }
+
     public void putCard(final Card c, final int row, final int col) {
         rows[row].putCard(c, col);
         cols[col].putCard(c, row);
         plays.add(new Play(row, col, c));
-    }
-
-    public void putCard(final Card c, final RowCol row, final RowCol col) {
-        rows[row.index].putCard(c, col.index);
-        cols[col.index].putCard(c, row.index);
+        ++ranks[c.getRank()];
     }
 
     public Play retractLastPlay() {
         final Play lastPlay = plays.remove(plays.size() - 1);
         rows[lastPlay.row].removeCard(lastPlay.col);
         cols[lastPlay.col].removeCard(lastPlay.row);
+        --ranks[lastPlay.card.getRank()];
         return lastPlay;
     }
 
     public Play getLastPlay() {
         return plays.get(plays.size() - 1);
-    }
-
-    public boolean hasPlayedSuit(final int suit) {
-        for (final RowCol r : rows) {
-            if (r.hasSuit(suit)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public List<Play> getPastPlays() {
-        return Collections.unmodifiableList(plays);
     }
 
     public RowCol findFirstEmptyRow() {
