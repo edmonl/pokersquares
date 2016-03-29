@@ -137,11 +137,17 @@ final class Strategy {
             List<RowCol> cols = board.findCols(c -> c.hasFlushPotential(card));
             if (!cols.isEmpty()) {
                 cols.sort(RowCol.REVERSE_NUMBER_OF_CARDS_COMPARATOR);
-                while (cols.size() > 1 && cols.get(cols.size() - 1).numberOfCards() == 0 && cols.get(cols.size() - 2).numberOfCards() == 0) {
+                while (cols.size() > 1 && cols.get(cols.size() - 1).numberOfCards() == 0
+                    && cols.get(cols.size() - 2).numberOfCards() == 0) {
                     cols.remove(cols.size() - 1);
                 }
                 final RowCol targetCol = cols.get(0);
-                if (cols.size() == 1 || cols.get(1).numberOfCards() < targetCol.numberOfCards() || targetCol.numberOfCards() == 0) {
+                if ((cols.size() == 1 || cols.get(1).numberOfCards() < targetCol.numberOfCards()
+                    || targetCol.numberOfCards() == 0)
+                    && (targetCol.numberOfCards() <= 2
+                    || targetCol.hasStraightPotential(card)
+                    || !targetCol.hasStraightPotential()
+                    && cols.stream().allMatch(c -> c.index == targetCol.index || c.numberOfCards() <= 2 || !c.hasStraightPotential(card)))) {
                     rows = board.findRows(r -> r.numberOfCards() == 1 && r.isEmpty(targetCol.index));
                     if (!rows.isEmpty()) {
                         rows.sort((r0, r1)
