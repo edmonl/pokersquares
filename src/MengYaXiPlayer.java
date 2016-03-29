@@ -3,10 +3,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Scanner;
-import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import util.Linear;
 
 /**
@@ -15,8 +15,7 @@ import util.Linear;
  */
 public final class MengYaXiPlayer implements PokerSquaresPlayer {
 
-    private static final Linear QUOTA = new Linear(2, 1, 15, 0.42);
-    private static final Linear AWARD_FACTOR = new Linear(2, 0.001, 6, 0.02);
+    private static final Linear QUOTA = new Linear(2, 1, 15, 0.4);
     private static final int TARGET_SHUFFLES = 200;
 
     public boolean verbose = false;
@@ -27,7 +26,7 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
     private final DeckTracker deckTracker = new DeckTracker();
     private final Strategy strategy = new Strategy(board, deckTracker);
     private final CellCandidateEvaluator candidateEvaluator = new CellCandidateEvaluator(board, deckTracker, strategy);
-    private final CompletionService<CellCandidateEvaluator> executor = new ExecutorCompletionService<>(Executors.newWorkStealingPool());
+    private final ExecutorService executor = Executors.newWorkStealingPool();
     private final List<CellCandidateEvaluator> workers = new ArrayList<>();
 
     @Override
@@ -115,22 +114,22 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         deckTracker.deal(card);
         final List<Card> cards = deckTracker.getCards();
         deckTracker.putBack(card);
-        if (parallel && workers.size() > 1) {
+        if (parallel && workers.size() > 1 && board.numberOfEmptyCells() > 6) {
             shuffles = multiThreadMonteCarlo(card, cards, candidates, deadline);
         } else {
             shuffles = singleThreadMonteCarlo(card, cards, candidates, deadline);
         }
         candidates.removeIf(c -> c == null);
         for (final CellCandidate c : candidates) {
-            c.score /= shuffles;
+            c.averageScore = (double) c.totalScore / shuffles;
         }
-        final CellCandidate winner = Collections.max(candidates, CellCandidate.SCORE_COMPARATOR);
+        final CellCandidate winner = Collections.max(candidates, CellCandidate.AVERAGE_SCORE_COMPARATOR);
         if (verbose) {
             System.out.println(String.format("%d shuffles completed within %.2f seconds",
                 shuffles, (System.currentTimeMillis() - startMillis) / 1000.0));
             System.out.print(candidates.size() + " candidates left:");
             candidates.stream().forEach((c) -> {
-                System.out.print(String.format(" (%d,%d: q=%.2f, s=%.2f)", c.row + 1, c.col + 1, c.quality, c.score));
+                System.out.print(String.format(" (%d,%d: q=%.2f, s=%.2f)", c.row + 1, c.col + 1, c.quality, c.averageScore));
             });
             System.out.println();
         }
@@ -138,98 +137,59 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
     }
 
     private int singleThreadMonteCarlo(final Card card, final List<Card> cards, final List<CellCandidate> candidates, final long deadline) {
-        int shuffles = 0;
-        int numberOfCandidates;
+        candidateEvaluator.resetShuffles();
         candidateEvaluator.setCandidates(candidates);
         do {
+            final int shuffles = candidateEvaluator.getShuffles();
+            final long now = System.currentTimeMillis();
             candidateEvaluator.evaluate(card, cards,
                 shuffles < TARGET_SHUFFLES
-                    ? (deadline - System.currentTimeMillis()) / (TARGET_SHUFFLES - shuffles)
-                    : deadline - System.currentTimeMillis()
+                    ? (deadline - now) / (TARGET_SHUFFLES - shuffles) + now
+                    : deadline
             );
-            ++shuffles;
-            numberOfCandidates = prepareNextShuffle(candidates, candidateEvaluator.getCandidates());
-        } while (System.currentTimeMillis() < deadline && numberOfCandidates > 1);
-        return shuffles;
+        } while (System.currentTimeMillis() < deadline && candidates.size() > 1);
+        return candidateEvaluator.getShuffles();
     }
 
     private int multiThreadMonteCarlo(final Card card, final List<Card> cards, final List<CellCandidate> candidates, final long deadline) {
         if (verbose) {
             System.out.println(String.format("%d workers are working", workers.size()));
         }
-        final long start = System.currentTimeMillis();
-        int shuffles = 0;
+        final List<Future<Integer>> results = new ArrayList<>(workers.size());
         for (final CellCandidateEvaluator worker : workers) {
-            worker.copyStateFrom(board, deckTracker, card, candidates, cards);
-            worker.setTimeQuota(shuffles < TARGET_SHUFFLES
-                ? (deadline - System.currentTimeMillis()) * workers.size() / (TARGET_SHUFFLES - shuffles)
-                : deadline - System.currentTimeMillis());
-            executor.submit(worker);
+            worker.initWorker(board, deckTracker, card, candidates, cards, TARGET_SHUFFLES / workers.size() + 1, deadline);
+            results.add(executor.submit(worker));
         }
-        int numberOfWorkers = workers.size();
-        try {
-            int numberOfCandidates;
-            while (numberOfWorkers > 0) {
-                final CellCandidateEvaluator worker = executor.take().get();
-                --numberOfWorkers;
-                ++shuffles;
-                numberOfCandidates = prepareNextShuffle(candidates, worker.getCandidates());
-                final long now = System.currentTimeMillis();
-                if (numberOfCandidates <= 1 || now + (now - start) / shuffles >= deadline) {
-                    continue;
+        do {
+            for (final CellCandidateEvaluator worker : workers) {
+                worker.syncCandidates(candidates);
+            }
+            candidates.sort(CellCandidate.REVERSE_QUALITY_COMPARATOR);
+            while (candidates.size() > 1 && candidates.get(candidates.size() - 1).quality <= 0.1) {
+                candidates.remove(candidates.size() - 1);
+            }
+            for (final CellCandidateEvaluator worker : workers) {
+                worker.syncCandidates(candidates);
+            }
+            double max = Double.MIN_VALUE;
+            for (final CellCandidate c : candidates) {
+                max = Double.max(max, c.quality);
+            }
+            for (final CellCandidate c : candidates) {
+                if (c != null) {
+                    c.quality /= max;
                 }
-                worker.setTimeQuota(shuffles < TARGET_SHUFFLES
-                    ? (deadline - System.currentTimeMillis()) * workers.size() / (TARGET_SHUFFLES - shuffles)
-                    : deadline - System.currentTimeMillis());
-                executor.submit(worker);
-                ++numberOfWorkers;
+            }
+        } while (System.currentTimeMillis() < deadline && candidates.size() > 1);
+        int shuffles = 0;
+        try {
+            for (final Future<Integer> f : results) {
+                shuffles += f.get();
             }
         } catch (final InterruptedException | ExecutionException ex) {
             ex.printStackTrace(System.out);
             System.exit(-1);
         }
         return shuffles;
-    }
-
-    private int prepareNextShuffle(final List<CellCandidate> candidates, final List<CellCandidate> resultCandidates) {
-        double total = 0.0;
-        int numberOfCandidates = 0;
-        for (int i = 0; i < candidates.size(); ++i) {
-            final CellCandidate c = candidates.get(i);
-            if (c == null) {
-                resultCandidates.set(i, null);
-            } else {
-                final double score = resultCandidates.get(i).score;
-                c.score += score;
-                total += score;
-                ++numberOfCandidates;
-            }
-        }
-        final double avg = total / numberOfCandidates;
-        final double award = AWARD_FACTOR.apply((double) numberOfCandidates);
-        double max = Double.MIN_VALUE;
-        for (int i = 0; i < candidates.size(); ++i) {
-            final CellCandidate c = candidates.get(i);
-            if (c != null) {
-                if (resultCandidates.get(i).score > avg + 1e-6) {
-                    c.quality += award;
-                } else if (resultCandidates.get(i).score < avg - 1e-6) {
-                    c.quality -= award;
-                }
-                if (c.quality <= 0.15) {
-                    candidates.set(i, null);
-                    resultCandidates.set(i, null);
-                    --numberOfCandidates;
-                } else {
-                    max = Double.max(max, c.quality);
-                }
-            }
-        }
-        for (final CellCandidate c : candidates) {
-            if (c != null) {
-                c.quality /= max;
-            }
-        }
-        return numberOfCandidates;
     }
 }

@@ -1,14 +1,19 @@
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
+import util.Linear;
 
 /**
  *
  * @author Meng
  */
-final class CellCandidateEvaluator implements Callable<CellCandidateEvaluator> {
+final class CellCandidateEvaluator implements Callable<Integer> {
+
+    private static final Linear AWARD_FACTOR = new Linear(2, 0.002, 6, 0.02);
+    private static final int MIN_SAMPLING_TIMES = 100;
 
     private final Board board;
     private final DeckTracker deck;
@@ -16,18 +21,24 @@ final class CellCandidateEvaluator implements Callable<CellCandidateEvaluator> {
     private Card card;
     private List<CellCandidate> candidates;
     private List<Card> cards;
-    private long millis;
+    private int targetShuffles;
+    private long workerDeadline;
+    private int shuffles;
+    private final CellCandidate[] candidateTable = new CellCandidate[CellCandidate.MAX_NUMBER];
+    private final boolean workerMode;
 
     public CellCandidateEvaluator(final Board board, final DeckTracker deck, final Strategy strategy) {
         this.board = board;
         this.deck = deck;
         this.strategy = strategy;
+        workerMode = false;
     }
 
     public CellCandidateEvaluator() {
         board = new Board();
         deck = new DeckTracker();
         strategy = new Strategy(board, deck);
+        workerMode = true;
     }
 
     public void setPointSystem(final PokerSquaresPointSystem pointSystem) {
@@ -41,81 +52,200 @@ final class CellCandidateEvaluator implements Callable<CellCandidateEvaluator> {
         card = null;
         candidates = null;
         cards = null;
-        millis = 0;
+        targetShuffles = 0;
+        workerDeadline = 0;
+        shuffles = 0;
+        Arrays.fill(candidateTable, null);
     }
 
     public void setCandidates(final List<CellCandidate> candidates) {
-        this.candidates = new ArrayList<>(candidates.size());
-        for (final CellCandidate c : candidates) {
-            this.candidates.add(new CellCandidate(c.row, c.col));
-        }
+        this.candidates = candidates;
     }
 
     public List<CellCandidate> getCandidates() {
         return candidates;
     }
 
-    public void setTimeQuota(final long millisRemaining) {
-        millis = millisRemaining;
+    public int getShuffles() {
+        return shuffles;
     }
 
-    public void copyStateFrom(final Board board, final DeckTracker deck,
-        final Card card, final List<CellCandidate> candidates, final List<Card> cards) {
+    public void resetShuffles() {
+        shuffles = 0;
+    }
+
+    public void initWorker(final Board board, final DeckTracker deck,
+        final Card card, final List<CellCandidate> candidates, final List<Card> cards,
+        final int targetShuffles, final long deadline) {
         this.board.copyFrom(board);
         this.deck.copyFrom(deck);
         this.card = card;
-        setCandidates(candidates);
+        this.candidates = new ArrayList<>(candidates.size());
+        for (final CellCandidate c : candidates) {
+            this.candidates.add(new CellCandidate(c.row, c.col));
+        }
         this.cards = new ArrayList<>(cards);
+        workerDeadline = deadline;
+        this.targetShuffles = targetShuffles;
+        shuffles = 0;
     }
 
-    public void evaluate(final Card card, final List<Card> cards, final long millisRemaining) {
-        final long deadline = System.currentTimeMillis() + millisRemaining;
+    public void evaluate(final Card card, final List<Card> cards, final long deadline) {
         shuffle(cards);
-        int numberOfCandidates = 0;
-        for (final CellCandidate c : candidates) {
-            if (c != null) {
-                ++numberOfCandidates;
-            }
-        }
-        int numberOfProcessed = 0;
         final List<Card> remainingCards = cards.subList(0, board.numberOfEmptyCells() - 1);
-        deck.deal(card);
-        for (int i = 0; i < candidates.size(); ++i) {
-            final CellCandidate c = candidates.get(i);
-            if (c != null) {
-                board.putCard(card, c.row, c.col);
-                c.score = fakePlay(remainingCards, (deadline - System.currentTimeMillis()) / (numberOfCandidates - numberOfProcessed));
-                board.retractLastPlay();
-                ++numberOfProcessed;
+        synchronized (this) {
+            if (candidates.size() > 1) {
+                deck.deal(card);
+                for (int i = 0; i < candidates.size(); ++i) {
+                    final CellCandidate c = candidates.get(i);
+                    board.putCard(card, c.row, c.col);
+                    if (remainingCards.size() <= 5) {
+                        c.score = finishPlay(remainingCards);
+                    } else {
+                        c.score = randomPlay(remainingCards, (deadline - System.currentTimeMillis()) / (candidates.size() - i));
+                    }
+                    board.retractLastPlay();
+                }
+                ++shuffles;
+                deck.putBack(card);
+                finishShuffle();
             }
         }
-        deck.putBack(card);
     }
 
     @Override
-    public CellCandidateEvaluator call() throws Exception {
-        evaluate(card, cards, millis);
-        return this;
+    public Integer call() throws Exception {
+        do {
+            final long now = System.currentTimeMillis();
+            evaluate(card, cards,
+                shuffles < targetShuffles
+                    ? (workerDeadline - now) / (targetShuffles - shuffles) + now
+                    : workerDeadline);
+        } while (System.currentTimeMillis() < workerDeadline && candidates.size() > 1);
+        return shuffles;
     }
 
-    private void testCandidates(final Card card, final List<CellCandidate> candidates,
-        final List<Card> cards, final long millisRemaining) {
+    public synchronized void syncCandidates(final List<CellCandidate> sumCans) {
+        Arrays.fill(candidateTable, null);
+        for (final CellCandidate c : sumCans) {
+            candidateTable[c.getId()] = c;
+        }
+        if (sumCans.size() < candidates.size()) {
+            final List<CellCandidate> newCans = new ArrayList<>(sumCans.size());
+            for (final CellCandidate c : candidates) {
+                final CellCandidate tc = candidateTable[c.getId()];
+                if (tc != null) {
+                    tc.totalScore += c.totalScore;
+                    c.totalScore = 0;
+                    tc.quality += c.quality;
+                    c.quality = 0.0;
+                    newCans.add(c);
+                }
+            }
+            candidates = newCans;
+        } else {
+            for (final CellCandidate c : candidates) {
+                final CellCandidate tc = candidateTable[c.getId()];
+                if (tc != null) {
+                    tc.totalScore += c.totalScore;
+                    c.totalScore = 0;
+                    tc.quality += c.quality;
+                    c.quality = 0.0;
+                }
+            }
+        }
+    }
+
+    private void finishShuffle() {
+        int total = 0;
+        for (final CellCandidate c : candidates) {
+            c.totalScore += c.score;
+            total += c.score;
+        }
+        final double avg = (double) total / candidates.size();
+        final double award = AWARD_FACTOR.apply((double) candidates.size());
+        if (workerMode) {
+            for (final CellCandidate c : candidates) {
+                if (c.score > avg + 1e-6) {
+                    c.quality += award;
+                } else if (c.score < avg - 1e-6) {
+                    c.quality -= award;
+                }
+                c.score = 0;
+            }
+        } else {
+            double max = Double.MIN_VALUE;
+            for (final CellCandidate c : candidates) {
+                if (c.score > avg + 1e-6) {
+                    c.quality += award;
+                } else if (c.score < avg - 1e-6) {
+                    c.quality -= award;
+                }
+                c.score = 0;
+                max = Double.max(max, c.quality);
+            }
+            Collections.sort(candidates, CellCandidate.REVERSE_QUALITY_COMPARATOR);
+            while (candidates.get(candidates.size() - 1).quality <= 0.1) {
+                candidates.remove(candidates.size() - 1);
+            }
+            for (final CellCandidate c : candidates) {
+                if (c != null) {
+                    c.quality /= max;
+                }
+            }
+        }
+    }
+
+    private int randomPlay(final List<Card> cards, final long millisRemaining) {
         final long deadline = System.currentTimeMillis() + millisRemaining;
+        long totalPaths = 0;
+        int times = 0;
+        int maxScore = 0;
+        do {
+            long paths = 1;
+            int score = 0;
+            int played = 0;
+            for (; played < cards.size(); ++played) {
+                final Card c = cards.get(played);
+                strategy.play(c);
+                final List<CellCandidate> cans = strategy.getCandidates();
+                CellCandidate can;
+                if (cans.size() == 1) {
+                    can = cans.get(0);
+                } else if (cards.size() - played <= 5) {
+                    score = finishCandidates(c, cans, cards.subList(played + 1, cards.size()));
+                    break;
+                } else {
+                    paths *= cans.size();
+                    can = selectCandidateRandomly(cans);
+                }
+                deck.deal(c);
+                board.putCard(c, can.row, can.col);
+            }
+            if (played == cards.size()) {
+                score = board.getPokerHandScore(strategy.getPointSystem());
+            }
+            retract(played);
+            ++times;
+            totalPaths += paths;
+            maxScore = Integer.max(maxScore, score);
+        } while (times < 2 * totalPaths / times && (times < MIN_SAMPLING_TIMES || System.currentTimeMillis() < deadline));
+        return maxScore;
+    }
+
+    private int finishCandidates(final Card card, final List<CellCandidate> candidates, final List<Card> cards) {
         deck.deal(card);
         for (int i = 0; i < candidates.size(); ++i) {
             final CellCandidate c = candidates.get(i);
             board.putCard(card, c.row, c.col);
-            c.score = fakePlay(cards, (deadline - System.currentTimeMillis()) / (candidates.size() - i));
+            c.score = finishPlay(cards);
             board.retractLastPlay();
         }
         deck.putBack(card);
+        return Collections.max(candidates, CellCandidate.SCORE_COMPARATOR).score;
     }
 
-    private double fakePlay(final List<Card> cards, final long millisRemaining) {
-        if (millisRemaining <= 0 && cards.size() > 5) {
-            return board.score(strategy.getPointSystem(), deck);
-        }
-        final long deadline = System.currentTimeMillis() + millisRemaining;
+    private int finishPlay(final List<Card> cards) {
         for (int i = 0; i < cards.size(); ++i) {
             final Card c = cards.get(i);
             strategy.play(c);
@@ -126,9 +256,9 @@ final class CellCandidateEvaluator implements Callable<CellCandidateEvaluator> {
                 board.putCard(c, can.row, can.col);
                 continue;
             }
-            testCandidates(c, cans, cards.subList(i + 1, cards.size()), deadline - System.currentTimeMillis());
+            final int score = finishCandidates(c, cans, cards.subList(i + 1, cards.size()));
             retract(i);
-            return Collections.max(cans, CellCandidate.SCORE_COMPARATOR).score;
+            return score;
         }
         final int score = board.getPokerHandScore(strategy.getPointSystem());
         retract(cards.size());
@@ -139,6 +269,16 @@ final class CellCandidateEvaluator implements Callable<CellCandidateEvaluator> {
         for (; steps > 0; --steps) {
             deck.putBack(board.retractLastPlay().card);
         }
+    }
+
+    private static CellCandidate selectCandidateRandomly(final List<CellCandidate> candidates) {
+        final double r = Math.random();
+        for (final CellCandidate c : candidates) {
+            if (r <= c.p) {
+                return c;
+            }
+        }
+        return candidates.get(candidates.size() - 1);
     }
 
     private static void shuffle(final List<Card> cards) {
