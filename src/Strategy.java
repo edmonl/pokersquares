@@ -151,7 +151,7 @@ final class Strategy {
                             -> Pokers.rankDistance(r0.getAnyCard().getRank(), card.getRank())
                             - Pokers.rankDistance(r1.getAnyCard().getRank(), card.getRank())
                         );
-                        row = rows.get(0);
+                        final RowCol row = rows.get(0);
                         final int minDist = Pokers.rankDistance(row.getAnyCard().getRank(), card.getRank());
                         if (minDist < RowCol.SIZE) {
                             while (rows.size() > 1
