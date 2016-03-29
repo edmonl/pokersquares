@@ -224,9 +224,10 @@ final class Strategy {
                 }
             }
         }
+        final double progress = board.progress();
         candidates.stream().forEach((c) -> {
-            c.quality = board.getRow(c.row).scoreCard(card, c.col, pointSystem, board, deckTracker)
-                + board.getCol(c.col).scoreCard(card, c.row, pointSystem, board, deckTracker);
+            c.quality = board.getRow(c.row).scoreCard(card, c.col, pointSystem, progress, deckTracker)
+                + board.getCol(c.col).scoreCard(card, c.row, pointSystem, progress, deckTracker);
         });
         candidates.sort(CellCandidate.REVERSE_QUALITY_COMPARATOR);
         if (verbose) {

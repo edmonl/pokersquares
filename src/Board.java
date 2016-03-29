@@ -1,5 +1,6 @@
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate;
@@ -40,6 +41,7 @@ final class Board {
     private final List<Play> plays = new ArrayList<>(NUMBER_OF_CELLS);
     private final RowColRecord[] rows = new RowColRecord[SIZE];
     private final RowColRecord[] cols = new RowColRecord[SIZE];
+    private final int[] ranks = new int[Card.NUM_RANKS];
 
     public Board() {
         for (int i = 0; i < SIZE; ++i) {
@@ -57,6 +59,7 @@ final class Board {
             rows[i].copyFrom(board.rows[i]);
             cols[i].copyFrom(board.cols[i]);
         }
+        System.arraycopy(board.ranks, 0, ranks, 0, Card.NUM_RANKS);
     }
 
     public void clear() {
@@ -65,6 +68,7 @@ final class Board {
             rows[i].clear();
             cols[i].clear();
         }
+        Arrays.fill(ranks, 0);
     }
 
     public boolean isEmpty() {
@@ -110,12 +114,13 @@ final class Board {
     }
 
     public double score(final PokerSquaresPointSystem pointSystem, final DeckTracker deck) {
+        final double progress = progress();
         double score = 0.0;
         for (final RowCol r : rows) {
-            score += r.score(pointSystem, this, deck);
+            score += r.score(pointSystem, progress, deck);
         }
         for (final RowCol c : cols) {
-            score += c.score(pointSystem, this, deck);
+            score += c.score(pointSystem, progress, deck);
         }
         return score;
     }
@@ -141,30 +146,31 @@ final class Board {
         return (double) plays.size() / NUMBER_OF_CELLS;
     }
 
+    public boolean hasRank(final int rank) {
+        return ranks[rank] > 0;
+    }
+
+    public int countRank(final int rank) {
+        return ranks[rank];
+    }
+
     public void putCard(final Card c, final int row, final int col) {
         rows[row].putCard(c, col);
         cols[col].putCard(c, row);
         plays.add(new Play(row, col, c));
+        ++ranks[c.getRank()];
     }
 
     public Play retractLastPlay() {
         final Play lastPlay = plays.remove(plays.size() - 1);
         rows[lastPlay.row].removeCard(lastPlay.col);
         cols[lastPlay.col].removeCard(lastPlay.row);
+        --ranks[lastPlay.card.getRank()];
         return lastPlay;
     }
 
     public Play getLastPlay() {
         return plays.get(plays.size() - 1);
-    }
-
-    public boolean hasPlayedSuit(final int suit) {
-        for (final RowCol r : rows) {
-            if (r.hasSuit(suit)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     public List<Play> getPastPlays() {

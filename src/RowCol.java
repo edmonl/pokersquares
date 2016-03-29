@@ -38,17 +38,17 @@ class RowCol {
     }
 
     public final double scoreCard(final Card card, final int pos,
-        final PokerSquaresPointSystem pointSystem, final Board board, final DeckTracker deck) {
-        final double score0 = score(pointSystem, board, deck);
+        final PokerSquaresPointSystem pointSystem, final double progress, final DeckTracker deck) {
+        final double score0 = score(pointSystem, progress, deck);
         deck.deal(card);
         putCard(card, pos);
-        final double score1 = score(pointSystem, board, deck);
+        final double score1 = score(pointSystem, progress, deck);
         removeCard(pos);
         deck.putBack(card);
         return score1 - score0;
     }
 
-    public final double score(final PokerSquaresPointSystem pointSystem, final Board board, final DeckTracker deck) {
+    public final double score(final PokerSquaresPointSystem pointSystem, final double progress, final DeckTracker deck) {
         if (numberOfCards == 0) {
             return 1.45;
         }
@@ -106,7 +106,6 @@ class RowCol {
                 return pointSystem.getHandScore(PokerHand.FULL_HOUSE);
         }
         // numberOfCards == rankCount
-        final double progress = board.progress();
         final boolean isFlush = suitCount == 1;
         final boolean isStraight = ranks[0] > 0 && (rankRange[1] < SIZE || rankRange[0] > Card.NUM_RANKS - SIZE)
             || ranks[0] == 0 && (rankRange[1] - rankRange[0] < SIZE);
