@@ -15,8 +15,9 @@ import util.Linear;
  */
 public final class MengYaXiPlayer implements PokerSquaresPlayer {
 
-    private static final Linear QUOTA = new Linear(2, 1, 15, 0.46);
-    private static final Linear AWARD_FACTOR = new Linear(2, 0.001, 6, 0.02);
+    private static final Linear QUOTA = new Linear(2, 1, 15, 0.45);
+    private static final Linear AWARD_FACTOR = new Linear(2, 0.0005, 6, 0.02);
+    private static final int TARGET_SHUFFLES = 1000;
 
     public boolean verbose = false;
     public boolean parallel = true;
@@ -142,8 +143,8 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         candidateEvaluator.setCandidates(candidates);
         do {
             candidateEvaluator.evaluate(card, cards,
-                shuffles < 500
-                    ? (deadline - System.currentTimeMillis()) / (500 - shuffles)
+                shuffles < TARGET_SHUFFLES
+                    ? (deadline - System.currentTimeMillis()) / (TARGET_SHUFFLES - shuffles)
                     : deadline - System.currentTimeMillis()
             );
             ++shuffles;
@@ -160,8 +161,8 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         int shuffles = 0;
         for (final CellCandidateEvaluator worker : workers) {
             worker.copyStateFrom(board, deckTracker, card, candidates, cards);
-            worker.setTimeQuota(shuffles < 500
-                ? (deadline - System.currentTimeMillis()) * workers.size() / (500 - shuffles)
+            worker.setTimeQuota(shuffles < TARGET_SHUFFLES
+                ? (deadline - System.currentTimeMillis()) * workers.size() / (TARGET_SHUFFLES - shuffles)
                 : deadline - System.currentTimeMillis());
             executor.submit(worker);
         }
@@ -177,8 +178,8 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
                 if (numberOfCandidates <= 1 || now + (now - start) / shuffles >= deadline) {
                     continue;
                 }
-                worker.setTimeQuota(shuffles < 500
-                    ? (deadline - System.currentTimeMillis()) * workers.size() / (500 - shuffles)
+                worker.setTimeQuota(shuffles < TARGET_SHUFFLES
+                    ? (deadline - System.currentTimeMillis()) * workers.size() / (TARGET_SHUFFLES - shuffles)
                     : deadline - System.currentTimeMillis());
                 executor.submit(worker);
                 ++numberOfWorkers;
@@ -215,7 +216,7 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
                 } else if (resultCandidates.get(i).score < avg - 1e-6) {
                     c.quality -= award;
                 }
-                if (c.quality <= 0.1) {
+                if (c.quality <= 0.15) {
                     candidates.set(i, null);
                     resultCandidates.set(i, null);
                     --numberOfCandidates;
