@@ -342,7 +342,7 @@ public class PokerSquares {
      */
     public static void main(final String[] args) {
         boolean verbose = false;
-        boolean parallel = false;
+        boolean parallel = true;
         int times = 1;
         long seed = System.currentTimeMillis();
         int argn = 0;

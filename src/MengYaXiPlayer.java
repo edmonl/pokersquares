@@ -19,7 +19,7 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
     private static final int TARGET_SHUFFLES = 200;
 
     public boolean verbose = false;
-    public boolean parallel = false;
+    public boolean parallel = true;
 
     private PokerSquaresPointSystem pointSystem;
     private final Board board = new Board();
@@ -155,9 +155,10 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         if (verbose) {
             System.out.println(String.format("%d workers are working", workers.size()));
         }
+        final int workerTarget = TARGET_SHUFFLES / workers.size() + 1;
         final List<Future<Integer>> results = new ArrayList<>(workers.size());
         for (final CellCandidateEvaluator worker : workers) {
-            worker.initWorker(board, deckTracker, card, candidates, cards, TARGET_SHUFFLES / workers.size() + 1, deadline);
+            worker.initWorker(board, deckTracker, card, candidates, cards, workerTarget, deadline);
             results.add(executor.submit(worker));
         }
         do {
