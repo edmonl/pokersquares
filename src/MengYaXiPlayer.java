@@ -20,7 +20,7 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
     private static final int TARGET_SHUFFLES = 200;
 
     public boolean verbose = false;
-    public boolean parallel = true;
+    public boolean parallel = false;
 
     private PokerSquaresPointSystem pointSystem;
     private final Board board = new Board();
@@ -115,10 +115,10 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         deckTracker.deal(card);
         final List<Card> cards = deckTracker.getCards();
         deckTracker.putBack(card);
-        if (workers.isEmpty()) {
-            shuffles = singleThreadMonteCarlo(card, cards, candidates, deadline);
-        } else {
+        if (parallel && workers.size() > 1) {
             shuffles = multiThreadMonteCarlo(card, cards, candidates, deadline);
+        } else {
+            shuffles = singleThreadMonteCarlo(card, cards, candidates, deadline);
         }
         candidates.removeIf(c -> c == null);
         for (final CellCandidate c : candidates) {

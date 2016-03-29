@@ -342,7 +342,7 @@ public class PokerSquares {
      */
     public static void main(final String[] args) {
         boolean verbose = false;
-        boolean singlethreading = false;
+        boolean parallel = false;
         int times = 1;
         long seed = System.currentTimeMillis();
         int argn = 0;
@@ -350,7 +350,9 @@ public class PokerSquares {
             if (arg.equals("-v")) {
                 verbose = true;
             } else if (arg.equals("-s")) {
-                singlethreading = true;
+                parallel = false;
+            } else if (arg.equals("-p")) {
+                parallel = true;
             } else if (argn == 0) {
                 times = Integer.parseUnsignedInt(arg);
                 ++argn;
@@ -362,7 +364,7 @@ public class PokerSquares {
 
         final MengYaXiPlayer player = new MengYaXiPlayer();
         player.verbose = verbose;
-        player.parallel = !singlethreading;
+        player.parallel = parallel;
         final PokerSquares game = new PokerSquares(player, PokerSquaresPointSystem.getAmericanPointSystem());
         game.playSequence(times, seed, player.verbose);
     }
