@@ -74,54 +74,56 @@ final class Strategy {
         final int rankCount = board.countRank(card.getRank());
         if (rankCount > 0) {
             final RowCol targetRow = board.findFirstRow(r -> r.countRank(card.getRank()) == rankCount);
-            if (!targetRow.isFull() && (targetRow.numberOfCards() <= 3 || targetRow.countRank(card.getRank()) >= 2)
-                && board.allRowsMatch(r -> r.countRanks() <= 2
-                    || !r.hasStraightPotential(card) && !r.hasFlushPotential(card))
-                && board.allColsMatch(c -> c.countSuits() <= 1 || !c.hasStraightPotential(card))) {
-                List<RowCol> cols = board.findCols(c -> c.hasFlushPotential(card));
-                if (!cols.isEmpty()) {
-                    cols.sort(RowCol.REVERSE_NUMBER_OF_CARDS_COMPARATOR);
-                    while (cols.size() > 1 && cols.get(cols.size() - 1).numberOfCards() == 0 && cols.get(cols.size() - 2).numberOfCards() == 0) {
-                        cols.remove(cols.size() - 1);
-                    }
-                    final RowCol targetCol = cols.get(0);
-                    if (cols.size() == 1
-                        || cols.get(1).numberOfCards() < targetCol.numberOfCards()
-                        && (targetCol.numberOfCards() <= 2 || !targetCol.hasStraightPotential())) {
-                        if (targetRow.isEmpty(targetCol.index)) {
-                            candidates.add(new CellCandidate(targetRow.index, targetCol.index));
-                            return;
-                        }
-                    }
-                    if (cols.stream().allMatch(c -> !c.isEmpty(targetRow.index))) {
-                        for (int i = 0; i < RowCol.SIZE; ++i) {
-                            if (targetRow.isEmpty(i)) {
-                                candidates.add(new CellCandidate(targetRow.index, i));
-                            }
-                        }
-                    }
-                    for (final RowCol c : cols) {
-                        if (c.isEmpty(targetRow.index)) {
-                            candidates.add(new CellCandidate(targetRow.index, c.index));
-                        } else {
-                            for (int i = 0; i < RowCol.SIZE; ++i) {
-                                if (c.isEmpty(i)) {
-                                    candidates.add(new CellCandidate(i, c.index));
-                                }
-                            }
-                        }
-                    }
-                } else if (targetRow.countRank(card.getRank()) > 1) {
-                    cols = board.findCols(c -> c.countSuits() > 1 && !c.isFull() && !c.hasStraightPotential());
+            if (targetRow != null) {
+                if (!targetRow.isFull() && (targetRow.numberOfCards() <= 3 || targetRow.countRank(card.getRank()) >= 2)
+                    && board.allRowsMatch(r -> r.countRanks() <= 2
+                        || !r.hasStraightPotential(card) && !r.hasFlushPotential(card))
+                    && board.allColsMatch(c -> c.countSuits() <= 1 || !c.hasStraightPotential(card))) {
+                    List<RowCol> cols = board.findCols(c -> c.hasFlushPotential(card));
                     if (!cols.isEmpty()) {
                         cols.sort(RowCol.REVERSE_NUMBER_OF_CARDS_COMPARATOR);
-                        while (cols.get(cols.size() - 1).numberOfCards() < cols.get(0).numberOfCards()) {
+                        while (cols.size() > 1 && cols.get(cols.size() - 1).numberOfCards() == 0 && cols.get(cols.size() - 2).numberOfCards() == 0) {
                             cols.remove(cols.size() - 1);
                         }
-                        for (final RowCol targetCol : cols) {
+                        final RowCol targetCol = cols.get(0);
+                        if (cols.size() == 1
+                            || cols.get(1).numberOfCards() < targetCol.numberOfCards()
+                            && (targetCol.numberOfCards() <= 2 || !targetCol.hasStraightPotential())) {
                             if (targetRow.isEmpty(targetCol.index)) {
                                 candidates.add(new CellCandidate(targetRow.index, targetCol.index));
                                 return;
+                            }
+                        }
+                        if (cols.stream().allMatch(c -> !c.isEmpty(targetRow.index))) {
+                            for (int i = 0; i < RowCol.SIZE; ++i) {
+                                if (targetRow.isEmpty(i)) {
+                                    candidates.add(new CellCandidate(targetRow.index, i));
+                                }
+                            }
+                        }
+                        for (final RowCol c : cols) {
+                            if (c.isEmpty(targetRow.index)) {
+                                candidates.add(new CellCandidate(targetRow.index, c.index));
+                            } else {
+                                for (int i = 0; i < RowCol.SIZE; ++i) {
+                                    if (c.isEmpty(i)) {
+                                        candidates.add(new CellCandidate(i, c.index));
+                                    }
+                                }
+                            }
+                        }
+                    } else if (targetRow.countRank(card.getRank()) > 1) {
+                        cols = board.findCols(c -> c.countSuits() > 1 && !c.isFull() && !c.hasStraightPotential());
+                        if (!cols.isEmpty()) {
+                            cols.sort(RowCol.REVERSE_NUMBER_OF_CARDS_COMPARATOR);
+                            while (cols.get(cols.size() - 1).numberOfCards() < cols.get(0).numberOfCards()) {
+                                cols.remove(cols.size() - 1);
+                            }
+                            for (final RowCol targetCol : cols) {
+                                if (targetRow.isEmpty(targetCol.index)) {
+                                    candidates.add(new CellCandidate(targetRow.index, targetCol.index));
+                                    return;
+                                }
                             }
                         }
                     }
