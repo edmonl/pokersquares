@@ -228,6 +228,15 @@ final class Board {
         return true;
     }
 
+    public boolean anyRowsMatch(final Predicate<RowCol> p) {
+        for (final RowCol r : rows) {
+            if (p.test(r)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public boolean allColsMatch(final Predicate<RowCol> p) {
         for (final RowCol c : cols) {
             if (!p.test(c)) {
