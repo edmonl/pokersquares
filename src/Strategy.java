@@ -10,6 +10,8 @@ import util.Pokers;
 final class Strategy {
 
     public boolean verbose = false;
+    public int candidatesLimit = 6;
+    public double maxQualityDifference = 10.0;
 
     private final List<CellCandidate> candidates = new ArrayList<>();
     private final Board board;
@@ -242,7 +244,7 @@ final class Strategy {
         }
         // remove very bad ones
         double max = candidates.get(0).quality;
-        while (candidates.size() > 6 || candidates.get(candidates.size() - 1).quality + 10 <= max) {
+        while (candidates.size() > candidatesLimit || candidates.get(candidates.size() - 1).quality + maxQualityDifference <= max) {
             candidates.remove(candidates.size() - 1);
         }
         if (candidates.size() == 1) {
