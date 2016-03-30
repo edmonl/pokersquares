@@ -227,23 +227,15 @@ final class CellCandidateEvaluator implements Callable<Integer> {
             }
             final int remainingCards = cards.size() - i;
             if (remainingCards >= 6) {
-                if (remainingCards >= 11 || cans.get(1).quality < 0.97) {
+                if (remainingCards >= 10 || cans.get(1).quality < 0.97) {
                     final CellCandidate can = cans.get(0);
                     deck.deal(c);
                     board.putCard(c, can.row, can.col);
                     continue;
                 }
-                if (remainingCards >= 8) {
+                if (remainingCards >= 7) {
                     if (cans.size() > 2) {
                         cans = new ArrayList<>(cans.subList(0, 2));
-                    }
-                } else if (remainingCards >= 7) {
-                    int size = 3;
-                    if (cans.size() >= 3 && cans.get(2).quality < 0.97) {
-                        size = 2;
-                    }
-                    if (size < cans.size()) {
-                        cans = new ArrayList<>(cans.subList(0, size));
                     }
                 } else {
                     int size = 4;
