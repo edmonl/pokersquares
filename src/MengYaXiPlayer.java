@@ -15,7 +15,7 @@ import util.Linear;
  */
 public final class MengYaXiPlayer implements PokerSquaresPlayer {
 
-    private static final Linear QUOTA = new Linear(2, 1, 15, 0.4);
+    private static final Linear QUOTA = new Linear(2, 1, 15, 0.42);
 
     public int minimalShuffles = 200;
     public boolean verbose = false;
@@ -176,13 +176,16 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
                     c.quality /= max;
                 }
             }
-            candidates.sort(CellCandidate.REVERSE_QUALITY_COMPARATOR);
-            while (candidates.size() > 1 && candidates.get(candidates.size() - 1).quality <= 0.1) {
-                candidates.remove(candidates.size() - 1);
+            if (candidates.size() > 1) {
+                final int maxTotalScore = Collections.max(candidates, CellCandidate.TOTAL_SCORE_COMPARATOR).totalScore;
+                candidates.removeIf(c -> c.quality <= 0.1 && c.totalScore < maxTotalScore);
             }
         } while (System.currentTimeMillis() < deadline && candidates.size() > 1);
         int shuffles = 0;
         try {
+            for (final CellCandidateEvaluator worker : workers) {
+                worker.setStop();
+            }
             for (final Future<Integer> f : results) {
                 shuffles += f.get();
             }

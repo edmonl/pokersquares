@@ -12,8 +12,7 @@ import util.Linear;
  */
 final class CellCandidateEvaluator implements Callable<Integer> {
 
-    private static final Linear AWARD_FACTOR = new Linear(2, 0.0015, 6, 0.02);
-    private static final int MIN_SAMPLING_TIMES = 100;
+    private static final Linear AWARD_FACTOR = new Linear(2, 0.001, 6, 0.01);
 
     private final Board board;
     private final DeckTracker deck;
@@ -26,6 +25,7 @@ final class CellCandidateEvaluator implements Callable<Integer> {
     private int shuffles;
     private final CellCandidate[] candidateTable = new CellCandidate[CellCandidate.MAX_NUMBER];
     private final boolean workerMode;
+    private boolean stopped;
 
     public CellCandidateEvaluator(final Board board, final DeckTracker deck) {
         this.board = board;
@@ -56,6 +56,7 @@ final class CellCandidateEvaluator implements Callable<Integer> {
         workerDeadline = 0;
         shuffles = 0;
         Arrays.fill(candidateTable, null);
+        stopped = false;
     }
 
     public void setCandidates(final List<CellCandidate> candidates) {
@@ -74,6 +75,10 @@ final class CellCandidateEvaluator implements Callable<Integer> {
         shuffles = 0;
     }
 
+    public void setStop() {
+        stopped = true;
+    }
+
     public void initWorker(final Board board, final DeckTracker deck,
         final Card card, final List<CellCandidate> candidates, final List<Card> cards,
         final int targetShuffles, final long deadline) {
@@ -88,6 +93,7 @@ final class CellCandidateEvaluator implements Callable<Integer> {
         workerDeadline = deadline;
         this.targetShuffles = targetShuffles;
         shuffles = 0;
+        stopped = false;
     }
 
     public void evaluate(final Card card, final List<Card> cards, final long deadline) {
@@ -117,7 +123,7 @@ final class CellCandidateEvaluator implements Callable<Integer> {
                 shuffles < targetShuffles
                     ? (workerDeadline - now) / (targetShuffles - shuffles) + now
                     : workerDeadline);
-        } while (System.currentTimeMillis() < workerDeadline && candidates.size() > 1);
+        } while (System.currentTimeMillis() < workerDeadline && candidates.size() > 1 && !stopped);
         return shuffles;
     }
 
@@ -226,7 +232,11 @@ final class CellCandidateEvaluator implements Callable<Integer> {
                     board.putCard(c, can.row, can.col);
                     continue;
                 }
-                cans = new ArrayList<>(cans.subList(0, 2));
+                if (cards.size() - i > 8 || cans.size() > 2 && cans.get(2).quality < 0.98) {
+                    cans = new ArrayList<>(cans.subList(0, 2));
+                } else {
+                    cans = new ArrayList<>(cans.subList(0, Integer.min(3, cans.size())));
+                }
             }
             final int score = finishCandidates(c, cans, cards.subList(i + 1, cards.size()));
             retract(i);
