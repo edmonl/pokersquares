@@ -341,18 +341,24 @@ public class PokerSquares {
      * @param args (not used)
      */
     public static void main(final String[] args) {
-        boolean verbose = false;
-        boolean parallel = true;
+        final MengYaXiPlayer player = new MengYaXiPlayer();
+
         int times = 1;
         long seed = System.currentTimeMillis();
         int argn = 0;
+        char opt = '\0';
         for (final String arg : args) {
-            if (arg.equals("-v")) {
-                verbose = true;
+            if (opt == 'm') {
+                player.minimalShuffles = Integer.parseUnsignedInt(arg);
+                opt = '\0';
+            } else if (arg.equals("-v")) {
+                player.verbose = true;
             } else if (arg.equals("-s")) {
-                parallel = false;
+                player.parallel = false;
             } else if (arg.equals("-p")) {
-                parallel = true;
+                player.parallel = true;
+            } else if (arg.equals("-m")) {
+                opt = 'm';
             } else if (argn == 0) {
                 times = Integer.parseUnsignedInt(arg);
                 ++argn;
@@ -362,9 +368,6 @@ public class PokerSquares {
             }
         }
 
-        final MengYaXiPlayer player = new MengYaXiPlayer();
-        player.verbose = verbose;
-        player.parallel = parallel;
         final PokerSquares game = new PokerSquares(player, PokerSquaresPointSystem.getAmericanPointSystem());
         game.playSequence(times, seed, player.verbose);
     }

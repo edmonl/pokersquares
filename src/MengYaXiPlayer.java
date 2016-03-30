@@ -16,8 +16,8 @@ import util.Linear;
 public final class MengYaXiPlayer implements PokerSquaresPlayer {
 
     private static final Linear QUOTA = new Linear(2, 1, 15, 0.4);
-    private static final int TARGET_SHUFFLES = 200;
 
+    public int minimalShuffles = 200;
     public boolean verbose = false;
     public boolean parallel = true;
 
@@ -143,8 +143,8 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
             final int shuffles = candidateEvaluator.getShuffles();
             final long now = System.currentTimeMillis();
             candidateEvaluator.evaluate(card, cards,
-                shuffles < TARGET_SHUFFLES
-                    ? (deadline - now) / (TARGET_SHUFFLES - shuffles) + now
+                shuffles < minimalShuffles
+                    ? (deadline - now) / (minimalShuffles - shuffles) + now
                     : deadline
             );
         } while (System.currentTimeMillis() < deadline && candidates.size() > 1);
@@ -155,20 +155,13 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
         if (verbose) {
             System.out.println(String.format("%d workers are working", workers.size()));
         }
-        final int workerTarget = TARGET_SHUFFLES / workers.size() + 1;
+        final int workerTarget = minimalShuffles / workers.size() + 1;
         final List<Future<Integer>> results = new ArrayList<>(workers.size());
         for (final CellCandidateEvaluator worker : workers) {
             worker.initWorker(board, deckTracker, card, candidates, cards, workerTarget, deadline);
             results.add(executor.submit(worker));
         }
         do {
-            for (final CellCandidateEvaluator worker : workers) {
-                worker.syncCandidates(candidates);
-            }
-            candidates.sort(CellCandidate.REVERSE_QUALITY_COMPARATOR);
-            while (candidates.size() > 1 && candidates.get(candidates.size() - 1).quality <= 0.1) {
-                candidates.remove(candidates.size() - 1);
-            }
             for (final CellCandidateEvaluator worker : workers) {
                 worker.syncCandidates(candidates);
             }
@@ -181,11 +174,18 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
                     c.quality /= max;
                 }
             }
+            candidates.sort(CellCandidate.REVERSE_QUALITY_COMPARATOR);
+            while (candidates.size() > 1 && candidates.get(candidates.size() - 1).quality <= 0.1) {
+                candidates.remove(candidates.size() - 1);
+            }
         } while (System.currentTimeMillis() < deadline && candidates.size() > 1);
         int shuffles = 0;
         try {
             for (final Future<Integer> f : results) {
                 shuffles += f.get();
+            }
+            for (final CellCandidateEvaluator worker : workers) {
+                worker.syncCandidates(candidates);
             }
         } catch (final InterruptedException | ExecutionException ex) {
             ex.printStackTrace(System.out);

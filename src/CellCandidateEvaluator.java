@@ -12,7 +12,7 @@ import util.Linear;
  */
 final class CellCandidateEvaluator implements Callable<Integer> {
 
-    private static final Linear AWARD_FACTOR = new Linear(2, 0.002, 6, 0.02);
+    private static final Linear AWARD_FACTOR = new Linear(2, 0.0015, 6, 0.02);
     private static final int MIN_SAMPLING_TIMES = 100;
 
     private final Board board;
@@ -125,32 +125,36 @@ final class CellCandidateEvaluator implements Callable<Integer> {
         return shuffles;
     }
 
-    public synchronized void syncCandidates(final List<CellCandidate> sumCans) {
+    public void syncCandidates(final List<CellCandidate> sumCans) {
         Arrays.fill(candidateTable, null);
         for (final CellCandidate c : sumCans) {
             candidateTable[c.getId()] = c;
         }
         if (sumCans.size() < candidates.size()) {
             final List<CellCandidate> newCans = new ArrayList<>(sumCans.size());
-            for (final CellCandidate c : candidates) {
-                final CellCandidate tc = candidateTable[c.getId()];
-                if (tc != null) {
-                    tc.totalScore += c.totalScore;
-                    c.totalScore = 0;
-                    tc.quality += c.quality;
-                    c.quality = 0.0;
-                    newCans.add(c);
+            synchronized (this) {
+                for (final CellCandidate c : candidates) {
+                    final CellCandidate tc = candidateTable[c.getId()];
+                    if (tc != null) {
+                        tc.totalScore += c.totalScore;
+                        c.totalScore = 0;
+                        tc.quality += c.quality;
+                        c.quality = 0.0;
+                        newCans.add(c);
+                    }
                 }
+                candidates = newCans;
             }
-            candidates = newCans;
         } else {
-            for (final CellCandidate c : candidates) {
-                final CellCandidate tc = candidateTable[c.getId()];
-                if (tc != null) {
-                    tc.totalScore += c.totalScore;
-                    c.totalScore = 0;
-                    tc.quality += c.quality;
-                    c.quality = 0.0;
+            synchronized (this) {
+                for (final CellCandidate c : candidates) {
+                    final CellCandidate tc = candidateTable[c.getId()];
+                    if (tc != null) {
+                        tc.totalScore += c.totalScore;
+                        c.totalScore = 0;
+                        tc.quality += c.quality;
+                        c.quality = 0.0;
+                    }
                 }
             }
         }
