@@ -12,7 +12,7 @@ import util.Linear;
  */
 final class CellCandidateEvaluator implements Callable<Integer> {
 
-    private static final Linear AWARD_FACTOR = new Linear(2, 0.001, 6, 0.01);
+    private static final Linear AWARD_FACTOR = new Linear(2, 0.0008, 6, 0.008);
 
     private final Board board;
     private final DeckTracker deck;
@@ -225,17 +225,36 @@ final class CellCandidateEvaluator implements Callable<Integer> {
                 board.putCard(c, can.row, can.col);
                 continue;
             }
-            if (cards.size() - i > 5) {
-                if (cans.get(1).quality < 0.98) {
+            final int remainingCards = cards.size() - i;
+            if (remainingCards >= 6) {
+                if (remainingCards >= 11 || cans.get(1).quality < 0.97) {
                     final CellCandidate can = cans.get(0);
                     deck.deal(c);
                     board.putCard(c, can.row, can.col);
                     continue;
                 }
-                if (cards.size() - i > 8 || cans.size() > 2 && cans.get(2).quality < 0.98) {
-                    cans = new ArrayList<>(cans.subList(0, 2));
+                if (remainingCards >= 8) {
+                    if (cans.size() > 2) {
+                        cans = new ArrayList<>(cans.subList(0, 2));
+                    }
+                } else if (remainingCards >= 7) {
+                    int size = 3;
+                    if (cans.size() >= 3 && cans.get(2).quality < 0.97) {
+                        size = 2;
+                    }
+                    if (size < cans.size()) {
+                        cans = new ArrayList<>(cans.subList(0, size));
+                    }
                 } else {
-                    cans = new ArrayList<>(cans.subList(0, Integer.min(3, cans.size())));
+                    int size = 4;
+                    if (cans.size() >= 3 && cans.get(2).quality < 0.97) {
+                        size = 2;
+                    } else if (cans.size() >= 4 && cans.get(3).quality < 0.97) {
+                        size = 3;
+                    }
+                    if (size < cans.size()) {
+                        cans = new ArrayList<>(cans.subList(0, size));
+                    }
                 }
             }
             final int score = finishCandidates(c, cans, cards.subList(i + 1, cards.size()));
