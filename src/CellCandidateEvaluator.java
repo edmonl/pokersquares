@@ -27,10 +27,10 @@ final class CellCandidateEvaluator implements Callable<Integer> {
     private final CellCandidate[] candidateTable = new CellCandidate[CellCandidate.MAX_NUMBER];
     private final boolean workerMode;
 
-    public CellCandidateEvaluator(final Board board, final DeckTracker deck, final Strategy strategy) {
+    public CellCandidateEvaluator(final Board board, final DeckTracker deck) {
         this.board = board;
         this.deck = deck;
-        this.strategy = strategy;
+        strategy = new Strategy(board, deck);
         workerMode = false;
     }
 

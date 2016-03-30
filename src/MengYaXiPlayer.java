@@ -25,7 +25,7 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
     private final Board board = new Board();
     private final DeckTracker deckTracker = new DeckTracker();
     private final Strategy strategy = new Strategy(board, deckTracker);
-    private final CellCandidateEvaluator candidateEvaluator = new CellCandidateEvaluator(board, deckTracker, strategy);
+    private final CellCandidateEvaluator candidateEvaluator = new CellCandidateEvaluator(board, deckTracker);
     private final ExecutorService executor = Executors.newWorkStealingPool();
     private final List<CellCandidateEvaluator> workers = new ArrayList<>();
 
@@ -33,11 +33,13 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
     public void setPointSystem(final PokerSquaresPointSystem system, final long millis) {
         pointSystem = system; // American system is guaranteed.
         candidateEvaluator.setPointSystem(system);
+        strategy.setPointSystem(pointSystem);
     }
 
     @Override
     public void init() {
         candidateEvaluator.clear();
+        strategy.clear();
         strategy.verbose = this.verbose;
         workers.clear();
         if (parallel) {
