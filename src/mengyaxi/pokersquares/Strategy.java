@@ -236,9 +236,11 @@ final class Strategy {
             }
         }
         final double progress = board.progress();
+        final double expectedBoardScore = board.updateExpectedScore(deckTracker);
         candidates.stream().forEach((c) -> {
-            c.quality = board.getRow(c.row).scoreCard(card, c.col, progress, deckTracker)
-                + board.getCol(c.col).scoreCard(card, c.row, progress, deckTracker);
+            c.quality = board.getRow(c.row).calculateCardScore(card, c.col, progress, deckTracker)
+                + board.getCol(c.col).calculateCardScore(card, c.row, progress, deckTracker)
+                + expectedBoardScore;
         });
         candidates.sort(CellCandidate.REVERSE_QUALITY_COMPARATOR);
         if (verbose) {
@@ -256,11 +258,9 @@ final class Strategy {
         if (candidates.size() == 1) {
             return;
         }
-        final double boardScore = board.score(deckTracker);
-        max += boardScore;
         double acc = 0.0;
         for (final CellCandidate c : candidates) {
-            c.quality = (c.quality + boardScore) / max;
+            c.quality = c.quality / max;
             acc += c.quality;
             c.p = acc;
         }

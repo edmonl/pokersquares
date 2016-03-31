@@ -117,14 +117,14 @@ public final class Board {
         return score;
     }
 
-    public double score(final DeckTracker deck) {
+    public double updateExpectedScore(final DeckTracker deck) {
         final double progress = progress();
         double score = 0.0;
         for (final RowCol r : rows) {
-            score += r.calculateExpectedScore(progress, deck);
+            score += r.updateExpectedScore(progress, deck);
         }
         for (final RowCol c : cols) {
-            score += c.calculateExpectedScore(progress, deck);
+            score += c.updateExpectedScore(progress, deck);
         }
         return score;
     }

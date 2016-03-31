@@ -29,6 +29,7 @@ public class RowCol {
     protected final int[] suits = new int[Card.NUM_SUITS];
     protected final int[] rankRange = new int[2];
     protected int anyCardPosition = -1;
+    private double expectedSccore = 0.0;
 
     public RowCol(final int index) {
         this.index = index;
@@ -40,130 +41,13 @@ public class RowCol {
         return positions[pos];
     }
 
-    public final double scoreCard(final Card card, final int pos, final double progress, final DeckTracker deck) {
-        final double score0 = calculateExpectedScore(progress, deck);
+    public final double calculateCardScore(final Card card, final int pos, final double progress, final DeckTracker deck) {
         deck.deal(card);
         putCard(card, pos);
         final double score1 = calculateExpectedScore(progress, deck);
         removeCard(pos);
         deck.putBack(card);
-        return score1 - score0;
-    }
-
-    final double calculateExpectedScore(final double progress, final DeckTracker deck) {
-        if (numberOfCards == 0) {
-            return 1.45;
-        }
-        if (numberOfCards == 1) {
-            return 1.9;
-        }
-        if (rankCount == 1) {
-            switch (numberOfCards) {
-                case 2:
-                    return 4.4; // PokerHand.ONE_PAIR
-                case 3:
-                    return deck.hasRank(getAnyCard().rank) ? 14 : 11.9; // PokerHand.THREE_OF_A_KIND
-            }
-            return 51; // PokerHand.FOUR_OF_A_KIND
-        }
-        switch (numberOfCards - rankCount) {
-            case 1: // PokerHand.ONE_PAIR
-                switch (numberOfCards) {
-                    case 3:
-                        return 4.35;
-                    case 4:
-                        return 2.99;
-                }
-                return 2;
-            case 2: {
-                int rank = getAnyCard().rank;
-                if (numberOfCards == 4) {
-                    if (ranks[rank] == 2) { // PokerHand.TWO_PAIR
-                        return 9.1;
-                    }
-                    // PokerHand.THREE_OF_A_KIND
-                    int otherRank = rank;
-                    if (ranks[rank] == 1) {
-                        rank = getAnotherRank(rank);
-                    } else {
-                        otherRank = getAnotherRank(rank);
-                    }
-                    return deck.hasRank(rank) ? 13.9 + deck.countRank(otherRank) : 11.9 + deck.countRank(otherRank);
-                }
-                // numberOfCards == 5
-                switch (ranks[rank]) {
-                    case 3:
-                        return 10; // PokerHand.THREE_OF_A_KIND;
-                    case 2:
-                        return 5; // PokerHand.TWO_PAIR
-                }
-                return ranks[getAnotherRank(rank)] == 2 ? 5/*PokerHand.TWO_PAIR*/ : 10/*PokerHand.THREE_OF_A_KIND*/;
-            }
-            case 3: // numberOfCards == 5
-                switch (ranks[getAnyCard().rank]) {
-                    case 1:
-                    case 4:
-                        return 50; // PokerHand.FOUR_OF_A_KIND
-                }
-                return 25; // PokerHand.FULL_HOUSE
-        }
-        // numberOfCards == rankCount
-        final boolean isFlush = suitCount == 1;
-        final boolean isStraight = ranks[0] > 0 && (rankRange[1] < SIZE || rankRange[0] > Card.NUM_RANKS - SIZE)
-            || ranks[0] == 0 && (rankRange[1] - rankRange[0] < SIZE);
-        switch (numberOfCards) {
-            case 2:
-                return isFlush ? (1 - progress) * 4 + 4.5 : (isStraight ? 2.5 - 0.3 * progress : 2.2);
-            case 3:
-                return isFlush ? (1 - progress) * 4 + 5.9 : (isStraight ? 2.7 - 0.6 * progress : 2.1);
-            case 5:
-                if (isStraight) {
-                    if (isFlush) {
-                        return rankRange[0] > Card.NUM_RANKS - SIZE
-                            ? 100 // PokerHand.ROYAL_FLUSH
-                            : 75; // PokerHand.STRAIGHT_FLUSH
-                    }
-                    return 15; // PokerHand.STRAIGHT
-                }
-                return isFlush ? 20/*PokerHand.FLUSH*/ : 0/*PokerHand.HIGH_CARD*/;
-        }
-        if (isStraight) {
-            if (isFlush) {
-                if (rankRange[0] > Card.NUM_RANKS - SIZE) {
-                    if (ranks[0] > 0) {
-                        for (int rank = Card.NUM_RANKS - SIZE + 1; rank < Card.NUM_RANKS; ++rank) {
-                            if (ranks[rank] == 0) {
-                                return deck.hasCard(rank, getAnyCard().suit) ? 14.9 - 2.9 * progress : 14 - 2 * progress;
-                            }
-                        }
-                        throw new IllegalStateException();
-                    }
-                    final int suit0 = getAnyCard().suit;
-                    return deck.hasCard(0, suit0) ? 14.9 - 2.9 * progress
-                        : (deck.hasCard(Card.NUM_RANKS - SIZE, suit0)
-                        ? 14.8 - 2.8 * progress : 14 - 2 * progress);
-                }
-                return 14.9;
-            }
-            int n = 0;
-            int rank = rankRange[0];
-            int rankEnd = rankRange[1] + 1;
-            if (rankEnd - rank < SIZE) {
-                if (rank > 0) {
-                    --rank;
-                }
-                if (rankEnd < Card.NUM_RANKS) {
-                    ++rankEnd;
-                }
-            }
-            for (; rank < rankEnd; ++rank) {
-                if (ranks[rank] > 0) {
-                    n += deck.countRank(rank);
-                }
-            }
-            return n * 0.9 + 1.1;
-        }
-        return isFlush ? 14 - 2 * progress : 1.1;
+        return score1 - expectedSccore;
     }
 
     public final boolean hasStraightPotential() {
@@ -373,5 +257,126 @@ public class RowCol {
                 }
             }
         }
+    }
+
+    final double updateExpectedScore(final double progress, final DeckTracker deck) {
+        expectedSccore = calculateExpectedScore(progress, deck);
+        return expectedSccore;
+    }
+
+    private double calculateExpectedScore(final double progress, final DeckTracker deck) {
+        if (numberOfCards == 0) {
+            return 1.45;
+        }
+        if (numberOfCards == 1) {
+            return 1.9;
+        }
+        if (rankCount == 1) {
+            switch (numberOfCards) {
+                case 2:
+                    return 4.4; // PokerHand.ONE_PAIR
+                case 3:
+                    return deck.hasRank(getAnyCard().rank) ? 14 : 11.9; // PokerHand.THREE_OF_A_KIND
+            }
+            return 51; // PokerHand.FOUR_OF_A_KIND
+        }
+        switch (numberOfCards - rankCount) {
+            case 1: // PokerHand.ONE_PAIR
+                switch (numberOfCards) {
+                    case 3:
+                        return 4.35;
+                    case 4:
+                        return 2.99;
+                }
+                return 2;
+            case 2: {
+                int rank = getAnyCard().rank;
+                if (numberOfCards == 4) {
+                    if (ranks[rank] == 2) { // PokerHand.TWO_PAIR
+                        return 9.1;
+                    }
+                    // PokerHand.THREE_OF_A_KIND
+                    int otherRank = rank;
+                    if (ranks[rank] == 1) {
+                        rank = getAnotherRank(rank);
+                    } else {
+                        otherRank = getAnotherRank(rank);
+                    }
+                    return deck.hasRank(rank) ? 13.9 + deck.countRank(otherRank) : 11.9 + deck.countRank(otherRank);
+                }
+                // numberOfCards == 5
+                switch (ranks[rank]) {
+                    case 3:
+                        return 10; // PokerHand.THREE_OF_A_KIND;
+                    case 2:
+                        return 5; // PokerHand.TWO_PAIR
+                }
+                return ranks[getAnotherRank(rank)] == 2 ? 5/*PokerHand.TWO_PAIR*/ : 10/*PokerHand.THREE_OF_A_KIND*/;
+            }
+            case 3: // numberOfCards == 5
+                switch (ranks[getAnyCard().rank]) {
+                    case 1:
+                    case 4:
+                        return 50; // PokerHand.FOUR_OF_A_KIND
+                }
+                return 25; // PokerHand.FULL_HOUSE
+        }
+        // numberOfCards == rankCount
+        final boolean isFlush = suitCount == 1;
+        final boolean isStraight = ranks[0] > 0 && (rankRange[1] < SIZE || rankRange[0] > Card.NUM_RANKS - SIZE)
+            || ranks[0] == 0 && (rankRange[1] - rankRange[0] < SIZE);
+        switch (numberOfCards) {
+            case 2:
+                return isFlush ? (1 - progress) * 4 + 4.5 : (isStraight ? 2.5 - 0.3 * progress : 2.2);
+            case 3:
+                return isFlush ? (1 - progress) * 4 + 5.9 : (isStraight ? 2.7 - 0.6 * progress : 2.1);
+            case 5:
+                if (isStraight) {
+                    if (isFlush) {
+                        return rankRange[0] > Card.NUM_RANKS - SIZE
+                            ? 100 // PokerHand.ROYAL_FLUSH
+                            : 75; // PokerHand.STRAIGHT_FLUSH
+                    }
+                    return 15; // PokerHand.STRAIGHT
+                }
+                return isFlush ? 20/*PokerHand.FLUSH*/ : 0/*PokerHand.HIGH_CARD*/;
+        }
+        if (isStraight) {
+            if (isFlush) {
+                if (rankRange[0] > Card.NUM_RANKS - SIZE) {
+                    if (ranks[0] > 0) {
+                        for (int rank = Card.NUM_RANKS - SIZE + 1; rank < Card.NUM_RANKS; ++rank) {
+                            if (ranks[rank] == 0) {
+                                return deck.hasCard(rank, getAnyCard().suit) ? 14.9 - 2.9 * progress : 14 - 2 * progress;
+                            }
+                        }
+                        throw new IllegalStateException();
+                    }
+                    final int suit0 = getAnyCard().suit;
+                    return deck.hasCard(0, suit0) ? 14.9 - 2.9 * progress
+                        : (deck.hasCard(Card.NUM_RANKS - SIZE, suit0)
+                        ? 14.8 - 2.8 * progress : 14 - 2 * progress);
+                }
+                return 14.9;
+            }
+            int n = 0;
+            int rank = rankRange[0];
+            int rankEnd = rankRange[1] + 1;
+            if (rankEnd - rank < SIZE) {
+                if (rank > 0) {
+                    --rank;
+                }
+                if (rankEnd < Card.NUM_RANKS) {
+                    ++rankEnd;
+                }
+            }
+            for (; rank < rankEnd; ++rank) {
+                if (ranks[rank] > 0) {
+                    n += deck.countRank(rank);
+                }
+            }
+            return n * 0.9 + 1.1;
+        }
+        return isFlush ? 14 - 2 * progress : 1.1;
     }
 }
