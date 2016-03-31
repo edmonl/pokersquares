@@ -347,6 +347,7 @@ public class PokerSquares {
         long seed = System.currentTimeMillis();
         int argn = 0;
         char opt = '\0';
+        boolean interactive = false;
         for (final String arg : args) {
             if (opt == 'm') {
                 player.minimalShuffles = Integer.parseUnsignedInt(arg);
@@ -359,6 +360,8 @@ public class PokerSquares {
                 player.parallel = true;
             } else if (arg.equals("-m")) {
                 opt = 'm';
+            } else if (arg.equals("-i")) {
+                interactive = true;
             } else if (argn == 0) {
                 times = Integer.parseUnsignedInt(arg);
                 ++argn;
@@ -369,6 +372,11 @@ public class PokerSquares {
         }
 
         final PokerSquares game = new PokerSquares(player, PokerSquaresPointSystem.getAmericanPointSystem());
-        game.playSequence(times, seed, player.verbose);
+        if (interactive) {
+            game.setSeed(times + seed);
+            game.play(new Scanner(System.in));
+        } else {
+            game.playSequence(times, seed, player.verbose);
+        }
     }
 }

@@ -97,7 +97,7 @@ final class CellCandidateEvaluator implements Callable<Integer> {
     }
 
     public void evaluate(final Card card, final List<Card> cards, final long deadline) {
-        shuffle(cards);
+        Collections.shuffle(cards);
         final List<Card> remainingCards = cards.subList(0, board.numberOfEmptyCells() - 1);
         synchronized (this) {
             if (candidates.size() > 1) {
@@ -261,15 +261,6 @@ final class CellCandidateEvaluator implements Callable<Integer> {
     private void retract(int steps) {
         for (; steps > 0; --steps) {
             deck.putBack(board.retractLastPlay().card);
-        }
-    }
-
-    private static void shuffle(final List<Card> cards) {
-        for (int i = cards.size() - 1; i > 0; --i) {
-            final int n = (int) Math.floor(Math.random() * (i + 1));
-            final Card tmpi = cards.get(i);
-            cards.set(i, cards.get(n));
-            cards.set(n, tmpi);
         }
     }
 }
