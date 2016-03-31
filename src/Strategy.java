@@ -114,7 +114,10 @@ final class Strategy {
                                 }
                             }
                         }
-                    } else if (targetRow.countRank(card.getRank()) > 1) {
+                        qualifyCandidates(card);
+                        return;
+                    }
+                    if (targetRow.countRank(card.getRank()) > 1) {
                         cols = board.findCols(c -> c.countSuits() > 1 && !c.isFull() && !c.hasStraightPotential());
                         if (!cols.isEmpty()) {
                             cols.sort(RowCol.REVERSE_NUMBER_OF_CARDS_COMPARATOR);
@@ -165,11 +168,12 @@ final class Strategy {
                             if (rows.size() > 1 && board.numberOfCards() < 10) {
                                 final RowCol targetRow = rows.get((int) Math.floor(Math.random() * rows.size()));
                                 candidates.add(new CellCandidate(targetRow.index, targetCol.index));
-                            } else {
-                                for (final RowCol r : rows) {
-                                    candidates.add(new CellCandidate(r.index, targetCol.index));
-                                }
+                                return;
                             }
+                            for (final RowCol r : rows) {
+                                candidates.add(new CellCandidate(r.index, targetCol.index));
+                            }
+                            qualifyCandidates(card);
                             return;
                         }
                         rows = board.findRows(r -> r.isEmpty(targetCol.index) && r.countRanks() == 1);
@@ -182,34 +186,38 @@ final class Strategy {
                             for (final RowCol r : rows) {
                                 candidates.add(new CellCandidate(r.index, targetCol.index));
                             }
-                        } else {
-                            int i = targetCol.findFirstEmptyPosition();
-                            candidates.add(new CellCandidate(i, targetCol.index));
-                            for (++i; i < RowCol.SIZE; ++i) {
-                                if (targetCol.isEmpty(i)) {
-                                    candidates.add(new CellCandidate(i, targetCol.index));
-                                }
+                            qualifyCandidates(card);
+                            return;
+                        }
+                        int i = targetCol.findFirstEmptyPosition();
+                        candidates.add(new CellCandidate(i, targetCol.index));
+                        for (++i; i < RowCol.SIZE; ++i) {
+                            if (targetCol.isEmpty(i)) {
+                                candidates.add(new CellCandidate(i, targetCol.index));
                             }
-                            rows = board.findRows(r -> r.countRanks() == 1);
-                            if (!rows.isEmpty()) {
-                                for (final RowCol r : rows) {
-                                    for (final RowCol c : cols) {
-                                        if (c.isEmpty(r.index)) {
-                                            candidates.add(new CellCandidate(r.index, c.index));
-                                        }
+                        }
+                        rows = board.findRows(r -> r.countRanks() == 1);
+                        if (!rows.isEmpty()) {
+                            for (final RowCol r : rows) {
+                                for (final RowCol c : cols) {
+                                    if (c.isEmpty(r.index)) {
+                                        candidates.add(new CellCandidate(r.index, c.index));
                                     }
                                 }
                             }
                         }
-                    } else {
-                        for (final RowCol c : cols) {
-                            for (int i = 0; i < RowCol.SIZE; ++i) {
-                                if (c.isEmpty(i)) {
-                                    candidates.add(new CellCandidate(i, c.index));
-                                }
+                        qualifyCandidates(card);
+                        return;
+                    }
+                    for (final RowCol c : cols) {
+                        for (int i = 0; i < RowCol.SIZE; ++i) {
+                            if (c.isEmpty(i)) {
+                                candidates.add(new CellCandidate(i, c.index));
                             }
                         }
                     }
+                    qualifyCandidates(card);
+                    return;
                 }
             }
         }
