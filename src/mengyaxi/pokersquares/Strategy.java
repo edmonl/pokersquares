@@ -258,14 +258,8 @@ final class Strategy {
         if (candidates.size() == 1) {
             return;
         }
-        double acc = 0.0;
         for (final CellCandidate c : candidates) {
             c.quality = c.quality / max;
-            acc += c.quality;
-            c.p = acc;
-        }
-        for (final CellCandidate c : candidates) {
-            c.p /= acc;
         }
     }
 }

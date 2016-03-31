@@ -62,7 +62,7 @@ public class PokerSquaresPlayer {
             if (verbose) {
                 System.out.print(cans.size() + " candidates: ");
                 cans.stream().forEach((c) -> {
-                    System.out.print(String.format(" (%d,%d: q=%.2f, p=%.2f)", c.row + 1, c.col + 1, c.quality, c.p));
+                    System.out.print(String.format(" (%d,%d: q=%.2f)", c.row + 1, c.col + 1, c.quality));
                 });
                 System.out.println();
             }

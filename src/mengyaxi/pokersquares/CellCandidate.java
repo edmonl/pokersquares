@@ -33,7 +33,7 @@ final class CellCandidate {
 
     public final int row, col;
     public final int id;
-    public double quality = 0.0, p = 0.0;
+    public double quality = 0.0;
     public int score = 0; // we don't have negtive score
     public int totalScore = 0;
     public double averageScore = 0.0;
