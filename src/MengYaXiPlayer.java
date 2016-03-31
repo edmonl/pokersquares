@@ -159,18 +159,15 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
             for (final CellCandidateEvaluator worker : workers) {
                 worker.syncCandidates(candidates);
             }
-            double max = Double.MIN_VALUE;
+            final double max = Collections.max(candidates, CellCandidate.QUALITY_COMPARATOR).quality;
+            int total = 0;
             for (final CellCandidate c : candidates) {
-                max = Double.max(max, c.quality);
-            }
-            for (final CellCandidate c : candidates) {
-                if (c != null) {
-                    c.quality /= max;
-                }
+                c.quality /= max;
+                total += c.totalScore;
             }
             if (candidates.size() > 1) {
-                final int maxTotalScore = Collections.max(candidates, CellCandidate.TOTAL_SCORE_COMPARATOR).totalScore;
-                candidates.removeIf(c -> c.quality <= 0.1 && c.totalScore < maxTotalScore);
+                final int avgTotal = total / candidates.size();
+                candidates.removeIf(c -> c.quality <= 0.15 && c.totalScore < avgTotal);
             }
         } while (System.currentTimeMillis() < deadline && candidates.size() > 1);
         int shuffles = 0;

@@ -108,8 +108,8 @@ final class CellCandidateEvaluator implements Callable<Integer> {
                     c.score = finishPlay(remainingCards);
                     board.retractLastPlay();
                 }
-                ++shuffles;
                 deck.putBack(card);
+                ++shuffles;
                 finishShuffle();
             }
         }
@@ -181,6 +181,7 @@ final class CellCandidateEvaluator implements Callable<Integer> {
             }
         } else {
             double max = Double.MIN_VALUE;
+            total = 0;
             for (final CellCandidate c : candidates) {
                 if (c.score > avg + 1e-6) {
                     c.quality += award;
@@ -189,13 +190,14 @@ final class CellCandidateEvaluator implements Callable<Integer> {
                 }
                 c.score = 0;
                 max = Double.max(max, c.quality);
-            }
-            Collections.sort(candidates, CellCandidate.REVERSE_QUALITY_COMPARATOR);
-            while (candidates.get(candidates.size() - 1).quality <= 0.1) {
-                candidates.remove(candidates.size() - 1);
+                total += c.totalScore;
             }
             for (final CellCandidate c : candidates) {
                 c.quality /= max;
+            }
+            if (candidates.size() > 1) {
+                final int avgTotal = total / candidates.size();
+                candidates.removeIf(c -> c.quality <= 0.15 && c.totalScore < avgTotal);
             }
         }
     }
