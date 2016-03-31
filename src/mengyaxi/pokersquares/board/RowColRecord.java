@@ -1,5 +1,7 @@
+package mengyaxi.pokersquares.board;
 
 import java.util.Arrays;
+import mengyaxi.pokersquares.Card;
 
 /**
  *
@@ -48,19 +50,19 @@ final class RowColRecord extends RowCol {
         // numberOfCards == SIZE
         switch (rankCount) {
             case 4:
-                return 1; //PokerHand.ONE_PAIR
+                return 1; // PokerHand.ONE_PAIR
             case 3: {
-                final int rank = getAnyCard().getRank();
+                final int rank = getAnyCard().rank;
                 switch (ranks[rank]) {
                     case 3:
-                        return 3; //PokerHand.THREE_OF_A_KIND
+                        return 3; // PokerHand.THREE_OF_A_KIND
                     case 2:
-                        return 2; //PokerHand.TWO_PAIR
+                        return 2; // PokerHand.TWO_PAIR
                 }
                 return ranks[getAnotherRank(rank)] == 2 ? 2/*PokerHand.TWO_PAIR*/ : 3/*PokerHand.THREE_OF_A_KIND*/;
             }
             case 2: {
-                final int rc = ranks[getAnyCard().getRank()];
+                final int rc = ranks[getAnyCard().rank];
                 return rc == 2 || rc == 3 ? 6/*PokerHand.FULL_HOUSE*/ : 7/*PokerHand.FOUR_OF_A_KIND*/;
             }
         }

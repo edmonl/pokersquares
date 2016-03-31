@@ -1,7 +1,10 @@
+package mengyaxi.pokersquares;
 
 import java.util.ArrayList;
 import java.util.List;
-import mengyaxi.util.Pokers;
+import mengyaxi.pokersquares.board.Board;
+import mengyaxi.pokersquares.board.RowCol;
+import mengyaxi.pokersquares.util.Pokers;
 
 /**
  *
@@ -33,13 +36,11 @@ final class Strategy {
     /**
      *
      * @param card
-     * @param out The strategic play
-     * @return Quality of the strategic play.
      */
     public void play(final Card card) {
         candidates.clear();
         if (board.isEmpty()) {
-            candidates.add(new CellCandidate(0, card.getSuit()));
+            candidates.add(new CellCandidate(0, card.suit));
             return;
         }
         if (board.numberOfEmptyCells() == 1) {
@@ -48,13 +49,13 @@ final class Strategy {
             return;
         }
         if (board.getRow(Board.SIZE - 1).isEmpty()) {
-            if (board.hasRank(card.getRank())) {
-                final RowCol targetRow = board.findFirstRow(r -> r.hasRank(card.getRank()));
-                candidates.add(new CellCandidate(targetRow.index, card.getSuit()));
+            if (board.hasRank(card.rank)) {
+                final RowCol targetRow = board.findFirstRow(r -> r.hasRank(card.rank));
+                candidates.add(new CellCandidate(targetRow.index, card.suit));
                 return;
             }
             final RowCol targetRow = board.findFirstEmptyRow();
-            final RowCol col = board.getCol(card.getSuit());
+            final RowCol col = board.getCol(card.suit);
             if (col.numberOfCards() < 4
                 || !col.hasStraightPotential()
                 || col.hasStraightPotential(card)) {
@@ -64,11 +65,11 @@ final class Strategy {
             }
             return;
         }
-        final int rankCount = board.countRank(card.getRank());
+        final int rankCount = board.countRank(card.rank);
         if (rankCount > 0) {
-            final RowCol targetRow = board.findFirstRow(r -> r.countRank(card.getRank()) == rankCount);
+            final RowCol targetRow = board.findFirstRow(r -> r.countRank(card.rank) == rankCount);
             if (targetRow != null) {
-                if (!targetRow.isFull() && (targetRow.numberOfCards() <= 3 || targetRow.countRank(card.getRank()) >= 2)
+                if (!targetRow.isFull() && (targetRow.numberOfCards() <= 3 || targetRow.countRank(card.rank) >= 2)
                     && board.allRowsMatch(r -> r.countRanks() <= 2
                         || !r.hasStraightPotential(card) && !r.hasFlushPotential(card))
                     && board.allColsMatch(c -> c.countSuits() <= 1 || !c.hasStraightPotential(card))) {
@@ -108,7 +109,7 @@ final class Strategy {
                         qualifyCandidates(card);
                         return;
                     }
-                    if (targetRow.countRank(card.getRank()) > 1) {
+                    if (targetRow.countRank(card.rank) > 1) {
                         cols = board.findCols(c -> c.countSuits() > 1 && !c.isFull() && !c.hasStraightPotential());
                         if (!cols.isEmpty()) {
                             cols.sort(RowCol.REVERSE_NUMBER_OF_CARDS_COMPARATOR);
@@ -145,14 +146,14 @@ final class Strategy {
                         List<RowCol> rows = board.findRows(r -> r.numberOfCards() == 1 && r.isEmpty(targetCol.index));
                         if (!rows.isEmpty()) {
                             rows.sort((r0, r1)
-                                -> Pokers.rankDistance(r0.getAnyCard().getRank(), card.getRank())
-                                - Pokers.rankDistance(r1.getAnyCard().getRank(), card.getRank())
+                                -> Pokers.rankDistance(r0.getAnyCard().rank, card.rank)
+                                - Pokers.rankDistance(r1.getAnyCard().rank, card.rank)
                             );
                             final RowCol row = rows.get(0);
-                            final int minDist = Pokers.rankDistance(row.getAnyCard().getRank(), card.getRank());
+                            final int minDist = Pokers.rankDistance(row.getAnyCard().rank, card.rank);
                             if (minDist < RowCol.SIZE) {
                                 while (rows.size() > 1
-                                    && Pokers.rankDistance(rows.get(rows.size() - 1).getAnyCard().getRank(), card.getRank()) != minDist) {
+                                    && Pokers.rankDistance(rows.get(rows.size() - 1).getAnyCard().rank, card.rank) != minDist) {
                                     rows.remove(rows.size() - 1);
                                 }
                             }

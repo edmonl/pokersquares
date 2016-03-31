@@ -1,5 +1,7 @@
+package mengyaxi.pokersquares;
 
 import java.util.Comparator;
+import mengyaxi.pokersquares.board.Board;
 
 /**
  *
@@ -30,6 +32,7 @@ final class CellCandidate {
     };
 
     public final int row, col;
+    public final int id;
     public double quality = 0.0, p = 0.0;
     public int score = 0; // we don't have negtive score
     public int totalScore = 0;
@@ -38,9 +41,6 @@ final class CellCandidate {
     public CellCandidate(final int row, final int col) {
         this.row = row;
         this.col = col;
-    }
-
-    public int getId() {
-        return row * Board.SIZE + col;
+        id = row * Board.SIZE + col;
     }
 }

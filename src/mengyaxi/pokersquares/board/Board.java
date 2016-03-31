@@ -1,14 +1,17 @@
+package mengyaxi.pokersquares.board;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Predicate;
+import mengyaxi.pokersquares.Card;
+import mengyaxi.pokersquares.DeckTracker;
 
 /**
  *
  * @author Meng
  */
-final class Board {
+public final class Board {
 
     private static final int[] POINT_SYSTEM = new int[]{0, 2, 5, 10, 15, 20, 25, 50, 75, 100};
 
@@ -159,14 +162,14 @@ final class Board {
         rows[row].putCard(c, col);
         cols[col].putCard(c, row);
         plays.add(new Play(row, col, c));
-        ++ranks[c.getRank()];
+        ++ranks[c.rank];
     }
 
     public Play retractLastPlay() {
         final Play lastPlay = plays.remove(plays.size() - 1);
         rows[lastPlay.row].removeCard(lastPlay.col);
         cols[lastPlay.col].removeCard(lastPlay.row);
-        --ranks[lastPlay.card.getRank()];
+        --ranks[lastPlay.card.rank];
         return lastPlay;
     }
 

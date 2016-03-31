@@ -1,9 +1,11 @@
+package mengyaxi.pokersquares;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
+import mengyaxi.pokersquares.board.Board;
 import mengyaxi.util.Linear;
 
 /**
@@ -126,13 +128,13 @@ final class CellCandidateEvaluator implements Callable<Integer> {
     public void syncCandidates(final List<CellCandidate> sumCans) {
         Arrays.fill(candidateTable, null);
         for (final CellCandidate c : sumCans) {
-            candidateTable[c.getId()] = c;
+            candidateTable[c.id] = c;
         }
         if (sumCans.size() < candidates.size()) {
             final List<CellCandidate> newCans = new ArrayList<>(sumCans.size());
             synchronized (this) {
                 for (final CellCandidate c : candidates) {
-                    final CellCandidate tc = candidateTable[c.getId()];
+                    final CellCandidate tc = candidateTable[c.id];
                     if (tc != null) {
                         tc.totalScore += c.totalScore;
                         c.totalScore = 0;
@@ -146,7 +148,7 @@ final class CellCandidateEvaluator implements Callable<Integer> {
         } else {
             synchronized (this) {
                 for (final CellCandidate c : candidates) {
-                    final CellCandidate tc = candidateTable[c.getId()];
+                    final CellCandidate tc = candidateTable[c.id];
                     if (tc != null) {
                         tc.totalScore += c.totalScore;
                         c.totalScore = 0;

@@ -1,4 +1,4 @@
-package mengyaxi.util;
+package mengyaxi.pokersquares.util;
 
 /**
  *

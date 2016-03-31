@@ -16,7 +16,7 @@ public final class Linear implements UnaryOperator<Double> {
     }
 
     @Override
-    public Double apply(Double x) {
+    public Double apply(final Double x) {
         return a * x + b;
     }
 }

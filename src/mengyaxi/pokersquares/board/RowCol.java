@@ -1,15 +1,18 @@
+package mengyaxi.pokersquares.board;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.Predicate;
-import mengyaxi.util.Pokers;
+import mengyaxi.pokersquares.Card;
+import mengyaxi.pokersquares.DeckTracker;
+import mengyaxi.pokersquares.util.Pokers;
 
 /**
  *
  * @author Meng
  */
-class RowCol {
+public class RowCol {
 
     public static final Comparator<RowCol> NUMBER_OF_CARDS_COMPARATOR = (rc0, rc1) -> rc0.numberOfCards() - rc1.numberOfCards();
     public static final Comparator<RowCol> REVERSE_NUMBER_OF_CARDS_COMPARATOR = (rc0, rc1) -> rc1.numberOfCards() - rc0.numberOfCards();
@@ -57,14 +60,14 @@ class RowCol {
         if (rankCount == 1) {
             switch (numberOfCards) {
                 case 2:
-                    return 4.4; //PokerHand.ONE_PAIR
+                    return 4.4; // PokerHand.ONE_PAIR
                 case 3:
-                    return deck.hasRank(getAnyCard().getRank()) ? 14 : 11.9; //PokerHand.THREE_OF_A_KIND
+                    return deck.hasRank(getAnyCard().rank) ? 14 : 11.9; // PokerHand.THREE_OF_A_KIND
             }
-            return 51; //PokerHand.FOUR_OF_A_KIND
+            return 51; // PokerHand.FOUR_OF_A_KIND
         }
         switch (numberOfCards - rankCount) {
-            case 1: //PokerHand.ONE_PAIR
+            case 1: // PokerHand.ONE_PAIR
                 switch (numberOfCards) {
                     case 3:
                         return 4.35;
@@ -73,12 +76,12 @@ class RowCol {
                 }
                 return 2;
             case 2: {
-                int rank = getAnyCard().getRank();
+                int rank = getAnyCard().rank;
                 if (numberOfCards == 4) {
-                    if (ranks[rank] == 2) { //PokerHand.TWO_PAIR
+                    if (ranks[rank] == 2) { // PokerHand.TWO_PAIR
                         return 9.1;
                     }
-                    //PokerHand.THREE_OF_A_KIND
+                    // PokerHand.THREE_OF_A_KIND
                     int otherRank = rank;
                     if (ranks[rank] == 1) {
                         rank = getAnotherRank(rank);
@@ -87,24 +90,24 @@ class RowCol {
                     }
                     return deck.hasRank(rank) ? 13.9 + deck.countRank(otherRank) : 11.9 + deck.countRank(otherRank);
                 }
-                //numberOfCards == 5
+                // numberOfCards == 5
                 switch (ranks[rank]) {
                     case 3:
-                        return 10; //PokerHand.THREE_OF_A_KIND;
+                        return 10; // PokerHand.THREE_OF_A_KIND;
                     case 2:
-                        return 5; //PokerHand.TWO_PAIR
+                        return 5; // PokerHand.TWO_PAIR
                 }
                 return ranks[getAnotherRank(rank)] == 2 ? 5/*PokerHand.TWO_PAIR*/ : 10/*PokerHand.THREE_OF_A_KIND*/;
             }
-            case 3: //numberOfCards == 5
-                switch (ranks[getAnyCard().getRank()]) {
+            case 3: // numberOfCards == 5
+                switch (ranks[getAnyCard().rank]) {
                     case 1:
                     case 4:
-                        return 50;//PokerHand.FOUR_OF_A_KIND
+                        return 50; // PokerHand.FOUR_OF_A_KIND
                 }
-                return 25; //PokerHand.FULL_HOUSE
+                return 25; // PokerHand.FULL_HOUSE
         }
-        //numberOfCards == rankCount
+        // numberOfCards == rankCount
         final boolean isFlush = suitCount == 1;
         final boolean isStraight = ranks[0] > 0 && (rankRange[1] < SIZE || rankRange[0] > Card.NUM_RANKS - SIZE)
             || ranks[0] == 0 && (rankRange[1] - rankRange[0] < SIZE);
@@ -117,10 +120,10 @@ class RowCol {
                 if (isStraight) {
                     if (isFlush) {
                         return rankRange[0] > Card.NUM_RANKS - SIZE
-                            ? 100 //PokerHand.ROYAL_FLUSH
-                            : 75; //PokerHand.STRAIGHT_FLUSH
+                            ? 100 // PokerHand.ROYAL_FLUSH
+                            : 75; // PokerHand.STRAIGHT_FLUSH
                     }
-                    return 15; //PokerHand.STRAIGHT
+                    return 15; // PokerHand.STRAIGHT
                 }
                 return isFlush ? 20/*PokerHand.FLUSH*/ : 0/*PokerHand.HIGH_CARD*/;
         }
@@ -130,12 +133,12 @@ class RowCol {
                     if (ranks[0] > 0) {
                         for (int rank = Card.NUM_RANKS - SIZE + 1; rank < Card.NUM_RANKS; ++rank) {
                             if (ranks[rank] == 0) {
-                                return deck.hasCard(rank, getAnyCard().getSuit()) ? 14.9 - 2.9 * progress : 14 - 2 * progress;
+                                return deck.hasCard(rank, getAnyCard().suit) ? 14.9 - 2.9 * progress : 14 - 2 * progress;
                             }
                         }
                         throw new IllegalStateException();
                     }
-                    final int suit0 = getAnyCard().getSuit();
+                    final int suit0 = getAnyCard().suit;
                     return deck.hasCard(0, suit0) ? 14.9 - 2.9 * progress
                         : (deck.hasCard(Card.NUM_RANKS - SIZE, suit0)
                         ? 14.8 - 2.8 * progress : 14 - 2 * progress);
@@ -178,12 +181,12 @@ class RowCol {
         if (isEmpty()) {
             return true;
         }
-        final int newRank = card.getRank();
+        final int newRank = card.rank;
         if (ranks[newRank] > 0 || isFull() || !hasStraightPotential()) {
             return false;
         }
         if (rankCount == 1) {
-            return Pokers.rankDistance(newRank, getAnyCard().getRank()) < SIZE;
+            return Pokers.rankDistance(newRank, getAnyCard().rank) < SIZE;
         }
         if (newRank == 0) {
             return rankRange[1] < SIZE || rankRange[0] > Card.NUM_RANKS - SIZE;
@@ -199,7 +202,7 @@ class RowCol {
     }
 
     public final boolean hasFlushPotential(final Card card) {
-        return isEmpty() || !isFull() && suitCount <= 1 && getAnyCard().getSuit() == card.getSuit();
+        return isEmpty() || !isFull() && suitCount <= 1 && getAnyCard().suit == card.suit;
     }
 
     public final int size() {
@@ -315,17 +318,17 @@ class RowCol {
             throw new IllegalArgumentException();
         }
         ++numberOfCards;
-        if (ranks[card.getRank()] == 0) {
+        if (ranks[card.rank] == 0) {
             ++rankCount;
             if (!card.isAce()) {
-                rankRange[0] = Integer.min(card.getRank(), rankRange[0]);
-                rankRange[1] = Integer.max(card.getRank(), rankRange[1]);
+                rankRange[0] = Integer.min(card.rank, rankRange[0]);
+                rankRange[1] = Integer.max(card.rank, rankRange[1]);
             }
         }
-        suitCount += suits[card.getSuit()] == 0 ? 1 : 0;
+        suitCount += suits[card.suit] == 0 ? 1 : 0;
         positions[pos] = card;
-        ++ranks[card.getRank()];
-        ++suits[card.getSuit()];
+        ++ranks[card.rank];
+        ++suits[card.suit];
         if (numberOfCards == 1) {
             anyCardPosition = pos;
         }
@@ -336,22 +339,22 @@ class RowCol {
         if (card == null) {
             throw new IllegalArgumentException();
         }
-        --suits[card.getSuit()];
-        --ranks[card.getRank()];
+        --suits[card.suit];
+        --ranks[card.rank];
         positions[pos] = null;
-        suitCount -= suits[card.getSuit()] == 0 ? 1 : 0;
-        if (ranks[card.getRank()] == 0) {
+        suitCount -= suits[card.suit] == 0 ? 1 : 0;
+        if (ranks[card.rank] == 0) {
             --rankCount;
             if (!card.isAce()) {
                 if (rankRange[0] >= rankRange[1]) {
                     rankRange[0] = Card.NUM_RANKS;
                     rankRange[1] = 0;
-                } else if (card.getRank() == rankRange[0]) {
+                } else if (card.rank == rankRange[0]) {
                     ++rankRange[0];
                     while (ranks[rankRange[0]] <= 0) {
                         ++rankRange[0];
                     }
-                } else if (card.getRank() == rankRange[1]) {
+                } else if (card.rank == rankRange[1]) {
                     --rankRange[1];
                     while (ranks[rankRange[1]] <= 0) {
                         --rankRange[1];
