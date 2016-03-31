@@ -2,7 +2,6 @@
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Scanner;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -97,13 +96,6 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
     @Override
     public String getName() {
         return "MengYaXi Player";
-    }
-
-    public static void main(final String[] args) {
-        final MengYaXiPlayer player = new MengYaXiPlayer();
-        player.verbose = true;
-        final PokerSquares game = new PokerSquares(player, PokerSquaresPointSystem.getAmericanPointSystem());
-        game.play(new Scanner(System.in));
     }
 
     private CellCandidate monteCarloGuess(final Card card, final List<CellCandidate> candidates, final long millisRemaining) {

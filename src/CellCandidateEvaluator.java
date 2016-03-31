@@ -195,9 +195,7 @@ final class CellCandidateEvaluator implements Callable<Integer> {
                 candidates.remove(candidates.size() - 1);
             }
             for (final CellCandidate c : candidates) {
-                if (c != null) {
-                    c.quality /= max;
-                }
+                c.quality /= max;
             }
         }
     }
