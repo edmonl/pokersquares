@@ -37,18 +37,17 @@ class RowCol {
         return positions[pos];
     }
 
-    public final double scoreCard(final Card card, final int pos,
-        final PokerSquaresPointSystem pointSystem, final double progress, final DeckTracker deck) {
-        final double score0 = score(pointSystem, progress, deck);
+    public final double scoreCard(final Card card, final int pos, final double progress, final DeckTracker deck) {
+        final double score0 = score(progress, deck);
         deck.deal(card);
         putCard(card, pos);
-        final double score1 = score(pointSystem, progress, deck);
+        final double score1 = score(progress, deck);
         removeCard(pos);
         deck.putBack(card);
         return score1 - score0;
     }
 
-    public final double score(final PokerSquaresPointSystem pointSystem, final double progress, final DeckTracker deck) {
+    public final double score(final double progress, final DeckTracker deck) {
         if (numberOfCards == 0) {
             return 1.45;
         }
@@ -58,28 +57,28 @@ class RowCol {
         if (rankCount == 1) {
             switch (numberOfCards) {
                 case 2:
-                    return 4.4; // PokerHand.ONE_PAIR
+                    return 4.4; //PokerHand.ONE_PAIR
                 case 3:
-                    return deck.hasRank(getAnyCard().getRank()) ? 14 : 11.9; // PokerHand.THREE_OF_A_KIND
+                    return deck.hasRank(getAnyCard().getRank()) ? 14 : 11.9; //PokerHand.THREE_OF_A_KIND
             }
-            return 51; // PokerHand.FOUR_OF_A_KIND
+            return 51; //PokerHand.FOUR_OF_A_KIND
         }
         switch (numberOfCards - rankCount) {
-            case 1: // PokerHand.ONE_PAIR
+            case 1: //PokerHand.ONE_PAIR
                 switch (numberOfCards) {
                     case 3:
                         return 4.35;
                     case 4:
                         return 2.99;
                 }
-                return pointSystem.getHandScore(PokerHand.ONE_PAIR);
+                return 2;
             case 2: {
                 int rank = getAnyCard().getRank();
                 if (numberOfCards == 4) {
-                    if (ranks[rank] == 2) { // PokerHand.TWO_PAIR
+                    if (ranks[rank] == 2) { //PokerHand.TWO_PAIR
                         return 9.1;
                     }
-                    // PokerHand.THREE_OF_A_KIND
+                    //PokerHand.THREE_OF_A_KIND
                     int otherRank = rank;
                     if (ranks[rank] == 1) {
                         rank = getAnotherRank(rank);
@@ -88,24 +87,24 @@ class RowCol {
                     }
                     return deck.hasRank(rank) ? 13.9 + deck.countRank(otherRank) : 11.9 + deck.countRank(otherRank);
                 }
-                // numberOfCards == 5
+                //numberOfCards == 5
                 switch (ranks[rank]) {
                     case 3:
-                        return pointSystem.getHandScore(PokerHand.THREE_OF_A_KIND);
+                        return 10; //PokerHand.THREE_OF_A_KIND;
                     case 2:
-                        return pointSystem.getHandScore(PokerHand.TWO_PAIR);
+                        return 5; //PokerHand.TWO_PAIR
                 }
-                return ranks[getAnotherRank(rank)] == 2 ? pointSystem.getHandScore(PokerHand.TWO_PAIR) : pointSystem.getHandScore(PokerHand.THREE_OF_A_KIND);
+                return ranks[getAnotherRank(rank)] == 2 ? 5/*PokerHand.TWO_PAIR*/ : 10/*PokerHand.THREE_OF_A_KIND*/;
             }
-            case 3: // numberOfCards == 5
+            case 3: //numberOfCards == 5
                 switch (ranks[getAnyCard().getRank()]) {
                     case 1:
                     case 4:
-                        return pointSystem.getHandScore(PokerHand.FOUR_OF_A_KIND);
+                        return 50;//PokerHand.FOUR_OF_A_KIND
                 }
-                return pointSystem.getHandScore(PokerHand.FULL_HOUSE);
+                return 25; //PokerHand.FULL_HOUSE
         }
-        // numberOfCards == rankCount
+        //numberOfCards == rankCount
         final boolean isFlush = suitCount == 1;
         final boolean isStraight = ranks[0] > 0 && (rankRange[1] < SIZE || rankRange[0] > Card.NUM_RANKS - SIZE)
             || ranks[0] == 0 && (rankRange[1] - rankRange[0] < SIZE);
@@ -118,12 +117,12 @@ class RowCol {
                 if (isStraight) {
                     if (isFlush) {
                         return rankRange[0] > Card.NUM_RANKS - SIZE
-                            ? pointSystem.getHandScore(PokerHand.ROYAL_FLUSH)
-                            : pointSystem.getHandScore(PokerHand.STRAIGHT_FLUSH);
+                            ? 100 //PokerHand.ROYAL_FLUSH
+                            : 75; //PokerHand.STRAIGHT_FLUSH
                     }
-                    return pointSystem.getHandScore(PokerHand.STRAIGHT);
+                    return 15; //PokerHand.STRAIGHT
                 }
-                return isFlush ? pointSystem.getHandScore(PokerHand.FLUSH) : pointSystem.getHandScore(PokerHand.HIGH_CARD);
+                return isFlush ? 20/*PokerHand.FLUSH*/ : 0/*PokerHand.HIGH_CARD*/;
         }
         if (isStraight) {
             if (isFlush) {

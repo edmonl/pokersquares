@@ -16,19 +16,10 @@ final class Strategy {
     private final List<CellCandidate> candidates = new ArrayList<>();
     private final Board board;
     private final DeckTracker deckTracker;
-    private PokerSquaresPointSystem pointSystem;
 
     public Strategy(final Board board, final DeckTracker deckTracker) {
         this.board = board;
         this.deckTracker = deckTracker;
-    }
-
-    public void setPointSystem(final PokerSquaresPointSystem pointSystem) {
-        this.pointSystem = pointSystem;
-    }
-
-    public PokerSquaresPointSystem getPointSystem() {
-        return pointSystem;
     }
 
     public void clear() {
@@ -245,8 +236,8 @@ final class Strategy {
         }
         final double progress = board.progress();
         candidates.stream().forEach((c) -> {
-            c.quality = board.getRow(c.row).scoreCard(card, c.col, pointSystem, progress, deckTracker)
-                + board.getCol(c.col).scoreCard(card, c.row, pointSystem, progress, deckTracker);
+            c.quality = board.getRow(c.row).scoreCard(card, c.col, progress, deckTracker)
+                + board.getCol(c.col).scoreCard(card, c.row, progress, deckTracker);
         });
         candidates.sort(CellCandidate.REVERSE_QUALITY_COMPARATOR);
         if (verbose) {
@@ -264,7 +255,7 @@ final class Strategy {
         if (candidates.size() == 1) {
             return;
         }
-        final double boardScore = board.score(pointSystem, deckTracker);
+        final double boardScore = board.score(deckTracker);
         max += boardScore;
         double acc = 0.0;
         for (final CellCandidate c : candidates) {

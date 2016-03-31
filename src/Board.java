@@ -10,6 +10,8 @@ import java.util.function.Predicate;
  */
 final class Board {
 
+    private static final int[] POINT_SYSTEM = new int[]{0, 2, 5, 10, 15, 20, 25, 50, 75, 100};
+
     public static final class Cell {
 
         public final int row;
@@ -98,28 +100,28 @@ final class Board {
         return cells;
     }
 
-    public int getPokerHandScore(final PokerSquaresPointSystem pointSystem) {
+    public int getPokerHandScore() {
         if (numberOfCards() != NUMBER_OF_CELLS) {
             throw new IllegalStateException();
         }
         int score = 0;
         for (final RowColRecord r : rows) {
-            score += r.getPokerHandScore(pointSystem);
+            score += POINT_SYSTEM[r.getPokerHandId()];
         }
         for (final RowColRecord c : cols) {
-            score += c.getPokerHandScore(pointSystem);
+            score += POINT_SYSTEM[c.getPokerHandId()];
         }
         return score;
     }
 
-    public double score(final PokerSquaresPointSystem pointSystem, final DeckTracker deck) {
+    public double score(final DeckTracker deck) {
         final double progress = progress();
         double score = 0.0;
         for (final RowCol r : rows) {
-            score += r.score(pointSystem, progress, deck);
+            score += r.score(progress, deck);
         }
         for (final RowCol c : cols) {
-            score += c.score(pointSystem, progress, deck);
+            score += c.score(progress, deck);
         }
         return score;
     }

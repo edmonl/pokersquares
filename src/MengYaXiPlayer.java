@@ -20,7 +20,6 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
     public boolean verbose = false;
     public boolean parallel = true;
 
-    private PokerSquaresPointSystem pointSystem;
     private final Board board = new Board();
     private final DeckTracker deckTracker = new DeckTracker();
     private final Strategy strategy = new Strategy(board, deckTracker);
@@ -30,9 +29,7 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
 
     @Override
     public void setPointSystem(final PokerSquaresPointSystem system, final long millis) {
-        pointSystem = system; // American system is guaranteed.
-        candidateEvaluator.setPointSystem(system);
-        strategy.setPointSystem(pointSystem);
+        // American system is guaranteed.
     }
 
     @Override
@@ -46,7 +43,6 @@ public final class MengYaXiPlayer implements PokerSquaresPlayer {
             n = n > 2 ? n - 1 : 0;
             while (workers.size() < n) {
                 final CellCandidateEvaluator worker = new CellCandidateEvaluator();
-                worker.setPointSystem(pointSystem);
                 workers.add(worker);
             }
         }

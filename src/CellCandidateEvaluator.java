@@ -41,10 +41,6 @@ final class CellCandidateEvaluator implements Callable<Integer> {
         workerMode = true;
     }
 
-    public void setPointSystem(final PokerSquaresPointSystem pointSystem) {
-        strategy.setPointSystem(pointSystem);
-    }
-
     public void clear() {
         board.clear();
         deck.clear();
@@ -253,7 +249,7 @@ final class CellCandidateEvaluator implements Callable<Integer> {
             retract(i);
             return score;
         }
-        final int score = board.getPokerHandScore(strategy.getPointSystem());
+        final int score = board.getPokerHandScore();
         retract(cards.size());
         return score;
     }
