@@ -121,10 +121,10 @@ public final class Board {
         final double progress = progress();
         double score = 0.0;
         for (final RowCol r : rows) {
-            score += r.score(progress, deck);
+            score += r.calculateExpectedScore(progress, deck);
         }
         for (final RowCol c : cols) {
-            score += c.score(progress, deck);
+            score += c.calculateExpectedScore(progress, deck);
         }
         return score;
     }

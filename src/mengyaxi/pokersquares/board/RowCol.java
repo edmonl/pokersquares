@@ -41,16 +41,16 @@ public class RowCol {
     }
 
     public final double scoreCard(final Card card, final int pos, final double progress, final DeckTracker deck) {
-        final double score0 = score(progress, deck);
+        final double score0 = calculateExpectedScore(progress, deck);
         deck.deal(card);
         putCard(card, pos);
-        final double score1 = score(progress, deck);
+        final double score1 = calculateExpectedScore(progress, deck);
         removeCard(pos);
         deck.putBack(card);
         return score1 - score0;
     }
 
-    public final double score(final double progress, final DeckTracker deck) {
+    final double calculateExpectedScore(final double progress, final DeckTracker deck) {
         if (numberOfCards == 0) {
             return 1.45;
         }
