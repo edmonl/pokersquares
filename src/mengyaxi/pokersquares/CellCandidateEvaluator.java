@@ -210,7 +210,7 @@ final class CellCandidateEvaluator implements Callable<Integer> {
             }
             final int remainingCards = cards.size() - i;
             if (remainingCards >= 6) {
-                if (remainingCards >= 8 || cans.get(1).quality < 0.97) {
+                if (cans.get(1).quality < 0.97) {
                     final CellCandidate can = cans.get(0);
                     deck.deal(c);
                     board.putCard(c, can.row, can.col);
