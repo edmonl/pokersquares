@@ -140,15 +140,12 @@ public class PokerSquaresPlayer {
             for (final CellCandidateEvaluator worker : workers) {
                 worker.syncCandidates(candidates);
             }
-            final double max = Collections.max(candidates, CellCandidate.QUALITY_COMPARATOR).quality;
-            int total = 0;
+            final double maxQuality = Collections.max(candidates, CellCandidate.QUALITY_COMPARATOR).quality;
             for (final CellCandidate c : candidates) {
-                c.quality /= max;
-                total += c.totalScore;
+                c.quality /= maxQuality;
             }
             if (candidates.size() > 1) {
-                final int avgTotal = total / candidates.size();
-                candidates.removeIf(c -> c.quality <= 0.15 && c.totalScore < avgTotal);
+                candidates.removeIf(c -> c.quality <= 0.01);
             }
         } while (System.currentTimeMillis() < deadline && candidates.size() > 1);
         int shuffles = 0;

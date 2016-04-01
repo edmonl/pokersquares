@@ -153,38 +153,34 @@ final class CellCandidateEvaluator implements Callable<Integer> {
         int total = 0;
         for (final CellCandidate c : candidates) {
             c.totalScore += c.score;
-            total += c.score;
+            c.score = 0;
+            total += c.totalScore;
         }
         final double avg = (double) total / candidates.size();
         final double award = AWARD_FACTOR.apply((double) candidates.size());
         if (workerMode) {
             for (final CellCandidate c : candidates) {
-                if (c.score > avg + 1e-6) {
+                if (c.totalScore > avg) {
                     c.quality += award;
-                } else if (c.score < avg - 1e-6) {
+                } else if (c.totalScore < avg) {
                     c.quality -= award;
                 }
-                c.score = 0;
             }
         } else {
             double maxQuality = -Double.MAX_VALUE;
-            total = 0;
             for (final CellCandidate c : candidates) {
-                if (c.score > avg + 1e-6) {
+                if (c.totalScore > avg) {
                     c.quality += award;
-                } else if (c.score < avg - 1e-6) {
+                } else if (c.totalScore < avg) {
                     c.quality -= award;
                 }
-                c.score = 0;
                 maxQuality = Double.max(maxQuality, c.quality);
-                total += c.totalScore;
             }
             for (final CellCandidate c : candidates) {
                 c.quality /= maxQuality;
             }
             if (candidates.size() > 1) {
-                final double avgTotal = (double) total / candidates.size();
-                candidates.removeIf(c -> c.quality <= 0.15 && c.totalScore < avgTotal);
+                candidates.removeIf(c -> c.quality <= 0.01);
             }
         }
     }
