@@ -69,8 +69,8 @@ final class Strategy {
         if (rankCount > 0) {
             final RowCol targetRow = board.findFirstRow(r -> r.countRank(card.rank) == rankCount);
             if (targetRow != null) {
-                if (!targetRow.isFull() && (targetRow.numberOfCards() <= 3 || targetRow.countRank(card.rank) >= 2)
-                    && board.allRowsMatch(r -> r.countRanks() <= 2
+                if (!targetRow.isFull() && (targetRow.numberOfCards() <= 2 || targetRow.countRank(card.rank) >= 2 || !targetRow.hasStraightPotential())
+                    && board.allRowsMatch(r -> r.index == targetRow.index || r.countRanks() <= 2
                         || !r.hasStraightPotential(card) && !r.hasFlushPotential(card))
                     && board.allColsMatch(c -> c.countSuits() <= 1 || !c.hasStraightPotential(card))) {
                     List<RowCol> cols = board.findCols(c -> c.hasFlushPotential(card));
@@ -110,20 +110,19 @@ final class Strategy {
                         return;
                     }
                     if (targetRow.countRank(card.rank) > 1) {
-                        cols = board.findCols(c -> c.countSuits() > 1 && !c.isFull() && !c.hasStraightPotential());
-                        if (!cols.isEmpty()) {
-                            cols.sort(RowCol.REVERSE_NUMBER_OF_CARDS_COMPARATOR);
-                            final int max = cols.get(0).numberOfCards();
-                            for (int i = cols.size() - 1; cols.get(i).numberOfCards() < max; --i) {
-                                cols.remove(i);
-                            }
-                            for (final RowCol targetCol : cols) {
-                                if (targetRow.isEmpty(targetCol.index)) {
-                                    candidates.add(new CellCandidate(targetRow.index, targetCol.index));
-                                    return;
+                        boolean hasEmptyColumn = false;
+                        for (int i = 0; i < RowCol.SIZE; ++i) {
+                            if (targetRow.isEmpty(i)) {
+                                final RowCol col = board.getCol(i);
+                                if (hasEmptyColumn && col.isEmpty()) {
+                                    continue;
                                 }
+                                hasEmptyColumn = hasEmptyColumn || col.isEmpty();
+                                candidates.add(new CellCandidate(targetRow.index, i));
                             }
                         }
+                        qualifyCandidates(card);
+                        return;
                     }
                 }
             }
