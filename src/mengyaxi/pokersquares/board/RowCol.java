@@ -113,8 +113,7 @@ public class RowCol {
         return positions[lastPosition()] == null;
     }
 
-    public final boolean isEmpty(final int index
-    ) {
+    public final boolean isEmpty(final int index) {
         return positions[index] == null;
     }
 
