@@ -178,7 +178,7 @@ final class CellCandidateEvaluator implements Callable<Integer> {
                 c.score = 0;
             }
         } else {
-            double max = Double.MIN_VALUE;
+            double maxQuality = -Double.MAX_VALUE;
             total = 0;
             for (final CellCandidate c : candidates) {
                 if (c.score > avg + 1e-6) {
@@ -187,11 +187,11 @@ final class CellCandidateEvaluator implements Callable<Integer> {
                     c.quality -= award;
                 }
                 c.score = 0;
-                max = Double.max(max, c.quality);
+                maxQuality = Double.max(maxQuality, c.quality);
                 total += c.totalScore;
             }
             for (final CellCandidate c : candidates) {
-                c.quality /= max;
+                c.quality /= maxQuality;
             }
             if (candidates.size() > 1) {
                 final int avgTotal = total / candidates.size();

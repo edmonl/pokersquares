@@ -113,8 +113,9 @@ final class Strategy {
                         cols = board.findCols(c -> c.countSuits() > 1 && !c.isFull() && !c.hasStraightPotential());
                         if (!cols.isEmpty()) {
                             cols.sort(RowCol.REVERSE_NUMBER_OF_CARDS_COMPARATOR);
-                            while (cols.get(cols.size() - 1).numberOfCards() < cols.get(0).numberOfCards()) {
-                                cols.remove(cols.size() - 1);
+                            final int max = cols.get(0).numberOfCards();
+                            for (int i = cols.size() - 1; cols.get(i).numberOfCards() < max; --i) {
+                                cols.remove(i);
                             }
                             for (final RowCol targetCol : cols) {
                                 if (targetRow.isEmpty(targetCol.index)) {
@@ -217,9 +218,6 @@ final class Strategy {
     }
 
     private void qualifyCandidates(final Card card) {
-        if (candidates.size() == 1) {
-            return;
-        }
         if (candidates.isEmpty()) {
             boolean hasEmptyColumn = false; // don't add two empty columns
             for (int c = 0; c < Board.SIZE; ++c) {
@@ -235,13 +233,18 @@ final class Strategy {
                 }
             }
         }
+        if (candidates.size() == 1) {
+            return;
+        }
         final double progress = board.progress();
         final double expectedBoardScore = board.updateExpectedScore(deckTracker);
-        candidates.stream().forEach((c) -> {
+        double maxQuality = -Double.MAX_VALUE;
+        for (final CellCandidate c : candidates) {
             c.quality = board.getRow(c.row).calculateCardScore(card, c.col, progress, deckTracker)
                 + board.getCol(c.col).calculateCardScore(card, c.row, progress, deckTracker)
                 + expectedBoardScore;
-        });
+            maxQuality = Double.max(maxQuality, c.quality);
+        }
         candidates.sort(CellCandidate.REVERSE_QUALITY_COMPARATOR);
         if (verbose) {
             System.out.print(candidates.size() + " raw candidates: ");
@@ -250,16 +253,16 @@ final class Strategy {
             });
             System.out.println();
         }
-        // remove very bad ones
-        double max = candidates.get(0).quality;
-        while (candidates.size() > candidatesLimit || candidates.get(candidates.size() - 1).quality + maxQualityDifference <= max) {
-            candidates.remove(candidates.size() - 1);
+        // remove bad ones
+        final double qualified = maxQuality - maxQualityDifference;
+        for (int i = candidates.size() - 1; i >= candidatesLimit || candidates.get(i).quality <= qualified; --i) {
+            candidates.remove(i);
         }
         if (candidates.size() == 1) {
             return;
         }
         for (final CellCandidate c : candidates) {
-            c.quality = c.quality / max;
+            c.quality = c.quality / maxQuality;
         }
     }
 }
