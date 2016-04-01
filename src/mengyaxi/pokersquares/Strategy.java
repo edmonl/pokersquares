@@ -158,7 +158,7 @@ final class Strategy {
                                     rows.remove(rows.size() - 1);
                                 }
                             }
-                            if (rows.size() > 1 && board.numberOfCards() < 10) {
+                            if (rows.size() > 1 && board.numberOfCards() < 7) {
                                 final RowCol targetRow = rows.get((int) Math.floor(Math.random() * rows.size()));
                                 candidates.add(new CellCandidate(targetRow.index, targetCol.index));
                                 return;

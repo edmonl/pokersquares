@@ -16,7 +16,8 @@ import mengyaxi.util.Linear;
  */
 public class PokerSquaresPlayer {
 
-    private static final Linear QUOTA = new Linear(2, 1, 15, 0.42);
+    private static final Linear QUOTA = new Linear(2, 1, 15, 0.4);
+    private static final int MAX_SHUFFLES = 10000;
 
     public boolean verbose = false;
     public boolean parallel = true;
@@ -120,7 +121,7 @@ public class PokerSquaresPlayer {
         candidateEvaluator.setCandidates(candidates);
         do {
             candidateEvaluator.evaluate(card, cards);
-        } while (System.currentTimeMillis() < deadline && candidates.size() > 1);
+        } while (candidateEvaluator.getShuffles() < MAX_SHUFFLES && System.currentTimeMillis() < deadline && candidates.size() > 1);
         return candidateEvaluator.getShuffles();
     }
 
@@ -133,9 +134,14 @@ public class PokerSquaresPlayer {
             worker.initWorker(board, deckTracker, card, candidates, cards, deadline);
             results.add(executor.submit(worker));
         }
+        int shuffles;
         do {
             for (final CellCandidateEvaluator worker : workers) {
                 worker.syncCandidates(candidates);
+            }
+            shuffles = 0;
+            for (final CellCandidateEvaluator worker : workers) {
+                shuffles += worker.getShuffles();
             }
             final double maxQuality = Collections.max(candidates, CellCandidate.QUALITY_COMPARATOR).quality;
             for (final CellCandidate c : candidates) {
@@ -144,12 +150,12 @@ public class PokerSquaresPlayer {
             if (candidates.size() > 1) {
                 candidates.removeIf(c -> c.quality <= 0.01);
             }
-        } while (System.currentTimeMillis() < deadline && candidates.size() > 1);
-        int shuffles = 0;
+        } while (shuffles < MAX_SHUFFLES && System.currentTimeMillis() < deadline && candidates.size() > 1);
         try {
             for (final CellCandidateEvaluator worker : workers) {
                 worker.setStop();
             }
+            shuffles = 0;
             for (final Future<Integer> f : results) {
                 shuffles += f.get();
             }
