@@ -341,48 +341,19 @@ public class PokerSquares {
      * @param args (not used)
      */
     public static void main(final String[] args) {
-        /* old main
-        // Demonstration of single game play (30 seconds)
-        System.out.println("Single game demo:");
-        PokerSquaresPointSystem.setSeed(0L);
-        PokerSquaresPointSystem system = PokerSquaresPointSystem.getAmeritishPointSystem();
-        System.out.println(system);
-        new PokerSquares(new GreedyMCPlayer(2), system).play();
+        final MengYaXiPlayer player = new MengYaXiPlayer();
 
-        // Demonstration of batch game play (30 seconds per game)
-        System.out.println("\n\nBatch game demo:");
-        System.out.println(system);
-        new PokerSquares(new GreedyMCPlayer(2), system).playSequence(3, 0, false);
-
-        // Demonstration of tournament evaluation (3 players, 2 point systems, 100 x 30s games for each of the 3*2=6 player-system pairs)
-        System.out.println("\n\nTournament evaluation demo:");
-        ArrayList<PokerSquaresPlayer> players = new ArrayList<PokerSquaresPlayer>();
-        players.add(new RandomPlayer());
-        players.add(new GreedyMCPlayer(0));
-        players.add(new GreedyMCPlayer(2));
-        ArrayList<PokerSquaresPointSystem> systems = new ArrayList<PokerSquaresPointSystem>();
-        PokerSquaresPointSystem.setSeed(0L);
-        systems.add(system);
-        systems.add(PokerSquaresPointSystem.getRandomPointSystem());
-        PokerSquares.playTournament(players, systems, 10, 0L); // use fewer games per system for faster testing
-         */
- /*
-        System.out.println("\n\nTournament evaluation demo:");
-        final ArrayList<PokerSquaresPlayer> players = new ArrayList<>();
-        players.add(new RandomPlayer()); // baseline
-        players.add(new GreedyMCPlayer(2)); // current rival
-        final ArrayList<PokerSquaresPointSystem> systems = new ArrayList<>();
-        systems.add(PokerSquaresPointSystem.getAmericanPointSystem());
-        PokerSquares.playTournament(players, systems, 5, System.currentTimeMillis());
-         */
-
-        boolean verbose = false;
         int times = 1;
         long seed = System.currentTimeMillis();
         int argn = 0;
+        boolean interactive = false;
         for (final String arg : args) {
             if (arg.equals("-v")) {
-                verbose = true;
+                player.verbose = true;
+            } else if (arg.equals("-s")) {
+                player.parallel = false;
+            } else if (arg.equals("-i")) {
+                interactive = true;
             } else if (argn == 0) {
                 times = Integer.parseUnsignedInt(arg);
                 ++argn;
@@ -392,9 +363,12 @@ public class PokerSquares {
             }
         }
 
-        final MengYaXiPlayer player = new MengYaXiPlayer();
-        player.verbose = verbose;
         final PokerSquares game = new PokerSquares(player, PokerSquaresPointSystem.getAmericanPointSystem());
-        game.playSequence(times, seed, player.verbose);
+        if (interactive) {
+            game.setSeed(times + seed);
+            game.play(new Scanner(System.in));
+        } else {
+            game.playSequence(times, seed, player.verbose);
+        }
     }
 }

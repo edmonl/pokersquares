@@ -1,3 +1,4 @@
+package mengyaxi.pokersquares;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -7,34 +8,18 @@ import java.util.List;
  *
  * @author Meng
  */
-final class DeckTracker implements Iterable<Card> {
-
-    private final class Iterator implements java.util.Iterator<Card> {
-
-        private int next;
-
-        public Iterator(final int next) {
-            this.next = next;
-        }
-
-        @Override
-        public boolean hasNext() {
-            return next < bookkeepingByCardId.length;
-        }
-
-        @Override
-        public Card next() {
-            final Card card = Card.getCard(next);
-            next = findNext(next + 1);
-            return card;
-        }
-    }
+public final class DeckTracker {
 
     private final boolean[] bookkeepingByCardId = new boolean[Card.NUM_CARDS]; // card id -> if the card has not been dealt
     private int numberOfCards;
 
     public DeckTracker() {
-        reset();
+        clear();
+    }
+
+    public void copyFrom(final DeckTracker deck) {
+        System.arraycopy(deck.bookkeepingByCardId, 0, bookkeepingByCardId, 0, Card.NUM_CARDS);
+        numberOfCards = deck.numberOfCards;
     }
 
     public int getNumberOfCards() {
@@ -84,47 +69,30 @@ final class DeckTracker implements Iterable<Card> {
         final List<Card> deck = new ArrayList<>(numberOfCards);
         for (int id = 0; id < bookkeepingByCardId.length; ++id) {
             if (bookkeepingByCardId[id]) {
-                deck.add(Card.getCard(id));
+                deck.add(Card.getCardById(id));
             }
         }
         return deck;
     }
 
     public void deal(final Card card) {
-        final int cardId = card.getCardId();
-        if (!bookkeepingByCardId[cardId]) {
+        if (!bookkeepingByCardId[card.id]) {
             throw new IllegalArgumentException("The card " + card + " has been dealt.");
         }
         --numberOfCards;
-        bookkeepingByCardId[cardId] = false;
+        bookkeepingByCardId[card.id] = false;
     }
 
     public void putBack(final Card card) {
-        final int cardId = card.getCardId();
-        if (bookkeepingByCardId[cardId]) {
+        if (bookkeepingByCardId[card.id]) {
             throw new IllegalArgumentException("The card " + card + " has not been dealt.");
         }
         ++numberOfCards;
-        bookkeepingByCardId[cardId] = true;
+        bookkeepingByCardId[card.id] = true;
     }
 
-    public final void reset() {
+    public final void clear() {
         Arrays.fill(bookkeepingByCardId, true);
         numberOfCards = bookkeepingByCardId.length;
-    }
-
-    @Override
-    public java.util.Iterator<Card> iterator() {
-        return new Iterator(findNext(0));
-    }
-
-    private int findNext(int current) {
-        if (isEmpty()) {
-            return bookkeepingByCardId.length;
-        }
-        while (current < bookkeepingByCardId.length && !bookkeepingByCardId[current]) {
-            ++current;
-        }
-        return current;
     }
 }
