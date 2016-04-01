@@ -14,7 +14,7 @@ import mengyaxi.util.Linear;
  */
 final class CellCandidateEvaluator implements Callable<Integer> {
 
-    private static final Linear AWARD_FACTOR = new Linear(2, 0.0008, 6, 0.008);
+    private static final Linear AWARD_FACTOR = new Linear(2, 0.001, 6, 0.01);
 
     private final Board board;
     private final DeckTracker deck;
@@ -210,7 +210,7 @@ final class CellCandidateEvaluator implements Callable<Integer> {
             }
             final int remainingCards = cards.size() - i;
             if (remainingCards >= 6) {
-                if (remainingCards >= 9 || cans.get(1).quality < 0.97) {
+                if (remainingCards >= 8 || cans.get(1).quality < 0.97) {
                     final CellCandidate can = cans.get(0);
                     deck.deal(c);
                     board.putCard(c, can.row, can.col);

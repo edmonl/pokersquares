@@ -1,6 +1,7 @@
 package mengyaxi.pokersquares;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import mengyaxi.pokersquares.board.Board;
 import mengyaxi.pokersquares.board.RowCol;
@@ -18,6 +19,7 @@ final class Strategy {
     private final List<CellCandidate> candidates = new ArrayList<>(candidatesLimit);
     private final Board board;
     private final DeckTracker deckTracker;
+    private final CellCandidate[] candidateTable = new CellCandidate[CellCandidate.MAX_NUMBER];
 
     public Strategy(final Board board, final DeckTracker deckTracker) {
         this.board = board;
@@ -26,6 +28,7 @@ final class Strategy {
 
     public void clear() {
         candidates.clear();
+        Arrays.fill(candidateTable, null);
     }
 
     public List<CellCandidate> getCandidates() {
@@ -64,8 +67,8 @@ final class Strategy {
             }
             return;
         }
-        if (board.allRowsMatch(r -> r.countRanks() <= 2)
-            && board.allColsMatch(c -> c.countSuits() <= 1 || c.numberOfCards() <= 2 || !c.hasStraightPotential())) {
+        final int rankCount = board.countRank(card.rank);
+        if (rankCount == 0 && board.allRowsMatch(r -> r.countRanks() <= 2)) {
             boolean areRowsHavingUniqueRanks = true;
             for (int i = 0; i < Board.SIZE; ++i) {
                 final RowCol r = board.getRow(i);
@@ -83,168 +86,56 @@ final class Strategy {
                 }
             }
             if (areRowsHavingUniqueRanks) {
-                final int rankCount = board.countRank(card.rank);
-                if (rankCount <= 0) {
-                    final List<RowCol> rows = board.findRows(r -> r.countRanks() <= 1 && r.numberOfCards() <= 2);
-                    if (!rows.isEmpty()) {
-
+                final List<RowCol> cols = board.findCols(c -> c.hasFlushPotential(card) || c.numberOfCards() >= 2 && c.hasStraightPotential(card));
+                List<RowCol> rows = board.findRows(r -> r.countRanks() == 1);
+                Arrays.fill(candidateTable, null);
+                if (!rows.isEmpty()) {
+                    rows.sort(RowCol.NUMBER_OF_CARDS_COMPARATOR);
+                    for (int i = 0; i < cols.size(); ++i) {
+                        final RowCol c = cols.get(i);
+                        int n = rows.get(0).numberOfCards();
+                        boolean added = false;
+                        for (final RowCol r : rows) {
+                            if (r.numberOfCards() > n && added) {
+                                break;
+                            }
+                            n = r.numberOfCards();
+                            if (c.isEmpty(r.index)) {
+                                final CellCandidate can = new CellCandidate(r.index, c.index);
+                                candidateTable[can.id] = can;
+                                added = true;
+                            }
+                        }
+                        if (added) {
+                            cols.set(i, null);
+                        }
                     }
-                } else {
-                    final RowCol targetRow = board.findFirstRow(r -> r.hasRank(card.rank));
-
+                    cols.removeIf(c -> c == null);
+                }
+                for (final RowCol c : cols) {
+                    for (int i = 0; i < RowCol.SIZE; ++i) {
+                        if (c.isEmpty(i)) {
+                            final CellCandidate can = new CellCandidate(i, c.index);
+                            candidateTable[can.id] = can;
+                        }
+                    }
+                }
+                rows = board.findRows(r -> r.hasFlushPotential(card) || r.numberOfCards() >= 2 && r.hasStraightPotential(card));
+                for (final RowCol r : rows) {
+                    for (int i = 0; i < RowCol.SIZE; ++i) {
+                        if (r.isEmpty(i)) {
+                            final CellCandidate can = new CellCandidate(r.index, i);
+                            candidateTable[can.id] = can;
+                        }
+                    }
+                }
+                for (final CellCandidate c : candidateTable) {
+                    if (c != null) {
+                        candidates.add(c);
+                    }
                 }
             }
         }
-        /*
-        final int rankCount = board.countRank(card.rank);
-        if (rankCount > 0) {
-            final RowCol targetRow = board.findFirstRow(r -> r.countRank(card.rank) == rankCount);
-            if (targetRow != null) {
-                if (!targetRow.isFull() && (targetRow.numberOfCards() <= 3 || targetRow.countRank(card.rank) >= 2)
-                    && board.allRowsMatch(r -> r.countRanks() <= 2
-                        || !r.hasStraightPotential(card) && !r.hasFlushPotential(card))
-                    && board.allColsMatch(c -> c.countSuits() <= 1 || !c.hasStraightPotential(card))) {
-                    List<RowCol> cols = board.findCols(c -> c.hasFlushPotential(card));
-                    if (!cols.isEmpty()) {
-                        cols.sort(RowCol.REVERSE_NUMBER_OF_CARDS_COMPARATOR);
-                        while (cols.size() > 1 && cols.get(cols.size() - 1).numberOfCards() == 0 && cols.get(cols.size() - 2).numberOfCards() == 0) {
-                            cols.remove(cols.size() - 1);
-                        }
-                        final RowCol targetCol = cols.get(0);
-                        if (cols.size() == 1
-                            || cols.get(1).numberOfCards() < targetCol.numberOfCards()
-                            && (targetCol.numberOfCards() <= 2 || !targetCol.hasStraightPotential())) {
-                            if (targetRow.isEmpty(targetCol.index)) {
-                                candidates.add(new CellCandidate(targetRow.index, targetCol.index));
-                                return;
-                            }
-                        }
-                        if (cols.stream().allMatch(c -> !c.isEmpty(targetRow.index))) {
-                            for (int i = 0; i < RowCol.SIZE; ++i) {
-                                if (targetRow.isEmpty(i)) {
-                                    candidates.add(new CellCandidate(targetRow.index, i));
-                                }
-                            }
-                        }
-                        for (final RowCol c : cols) {
-                            if (c.isEmpty(targetRow.index)) {
-                                candidates.add(new CellCandidate(targetRow.index, c.index));
-                            } else {
-                                for (int i = 0; i < RowCol.SIZE; ++i) {
-                                    if (c.isEmpty(i)) {
-                                        candidates.add(new CellCandidate(i, c.index));
-                                    }
-                                }
-                            }
-                        }
-                        qualifyCandidates(card);
-                        return;
-                    }
-                    if (targetRow.countRank(card.rank) > 1) {
-                        cols = board.findCols(c -> c.countSuits() > 1 && !c.isFull() && !c.hasStraightPotential());
-                        if (!cols.isEmpty()) {
-                            cols.sort(RowCol.REVERSE_NUMBER_OF_CARDS_COMPARATOR);
-                            final int max = cols.get(0).numberOfCards();
-                            for (int i = cols.size() - 1; cols.get(i).numberOfCards() < max; --i) {
-                                cols.remove(i);
-                            }
-                            for (final RowCol targetCol : cols) {
-                                if (targetRow.isEmpty(targetCol.index)) {
-                                    candidates.add(new CellCandidate(targetRow.index, targetCol.index));
-                                    return;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        } else if (rankCount == 0) {
-            if (board.allRowsMatch(r -> r.countRanks() <= 2 || !r.hasStraightPotential(card) && !r.hasFlushPotential(card))
-                && board.allColsMatch(c -> c.countSuits() <= 1 || !c.hasStraightPotential(card))) {
-                List<RowCol> cols = board.findCols(c -> c.hasFlushPotential(card));
-                if (!cols.isEmpty()) {
-                    cols.sort(RowCol.REVERSE_NUMBER_OF_CARDS_COMPARATOR);
-                    while (cols.size() > 1 && cols.get(cols.size() - 1).numberOfCards() == 0
-                        && cols.get(cols.size() - 2).numberOfCards() == 0) {
-                        cols.remove(cols.size() - 1);
-                    }
-                    final RowCol targetCol = cols.get(0);
-                    if ((cols.size() == 1 || cols.get(1).numberOfCards() < targetCol.numberOfCards()
-                        || targetCol.numberOfCards() == 0)
-                        && (targetCol.numberOfCards() <= 2
-                        || targetCol.hasStraightPotential(card)
-                        || !targetCol.hasStraightPotential()
-                        && cols.stream().allMatch(c -> c.index == targetCol.index || c.numberOfCards() <= 2 || !c.hasStraightPotential(card)))) {
-                        List<RowCol> rows = board.findRows(r -> r.numberOfCards() == 1 && r.isEmpty(targetCol.index));
-                        if (!rows.isEmpty()) {
-                            rows.sort((r0, r1)
-                                -> Pokers.rankDistance(r0.getAnyCard().rank, card.rank)
-                                - Pokers.rankDistance(r1.getAnyCard().rank, card.rank)
-                            );
-                            final RowCol row = rows.get(0);
-                            final int minDist = Pokers.rankDistance(row.getAnyCard().rank, card.rank);
-                            if (minDist < RowCol.SIZE) {
-                                while (rows.size() > 1
-                                    && Pokers.rankDistance(rows.get(rows.size() - 1).getAnyCard().rank, card.rank) != minDist) {
-                                    rows.remove(rows.size() - 1);
-                                }
-                            }
-                            if (rows.size() > 1 && board.numberOfCards() < 10) {
-                                final RowCol targetRow = rows.get((int) Math.floor(Math.random() * rows.size()));
-                                candidates.add(new CellCandidate(targetRow.index, targetCol.index));
-                                return;
-                            }
-                            for (final RowCol r : rows) {
-                                candidates.add(new CellCandidate(r.index, targetCol.index));
-                            }
-                            qualifyCandidates(card);
-                            return;
-                        }
-                        rows = board.findRows(r -> r.isEmpty(targetCol.index) && r.countRanks() == 1);
-                        if (!rows.isEmpty()) {
-                            if (rows.size() == 1) {
-                                final RowCol targetRow = rows.get(0);
-                                candidates.add(new CellCandidate(targetRow.index, targetCol.index));
-                                return;
-                            }
-                            for (final RowCol r : rows) {
-                                candidates.add(new CellCandidate(r.index, targetCol.index));
-                            }
-                            qualifyCandidates(card);
-                            return;
-                        }
-                        int i = targetCol.findFirstEmptyPosition();
-                        candidates.add(new CellCandidate(i, targetCol.index));
-                        for (++i; i < RowCol.SIZE; ++i) {
-                            if (targetCol.isEmpty(i)) {
-                                candidates.add(new CellCandidate(i, targetCol.index));
-                            }
-                        }
-                        rows = board.findRows(r -> r.countRanks() == 1);
-                        if (!rows.isEmpty()) {
-                            for (final RowCol r : rows) {
-                                for (final RowCol c : cols) {
-                                    if (c.isEmpty(r.index)) {
-                                        candidates.add(new CellCandidate(r.index, c.index));
-                                    }
-                                }
-                            }
-                        }
-                        qualifyCandidates(card);
-                        return;
-                    }
-                    for (final RowCol c : cols) {
-                        for (int i = 0; i < RowCol.SIZE; ++i) {
-                            if (c.isEmpty(i)) {
-                                candidates.add(new CellCandidate(i, c.index));
-                            }
-                        }
-                    }
-                    qualifyCandidates(card);
-                    return;
-                }
-            }
-        }*/
         qualifyCandidates(card);
     }
 
