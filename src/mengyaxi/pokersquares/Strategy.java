@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import mengyaxi.pokersquares.board.Board;
 import mengyaxi.pokersquares.board.RowCol;
-import mengyaxi.pokersquares.util.Pokers;
 
 /**
  *
@@ -65,6 +64,38 @@ final class Strategy {
             }
             return;
         }
+        if (board.allRowsMatch(r -> r.countRanks() <= 2)
+            && board.allColsMatch(c -> c.countSuits() <= 1 || c.numberOfCards() <= 2 || !c.hasStraightPotential())) {
+            boolean areRowsHavingUniqueRanks = true;
+            for (int i = 0; i < Board.SIZE; ++i) {
+                final RowCol r = board.getRow(i);
+                int rank0 = r.getAnyCard().rank;
+                if (r.countRank(rank0) != board.countRank(rank0)) {
+                    areRowsHavingUniqueRanks = false;
+                    break;
+                }
+                if (r.countRanks() > 1) {
+                    rank0 = r.getAnotherRank(rank0);
+                    if (r.countRank(rank0) != board.countRank(rank0)) {
+                        areRowsHavingUniqueRanks = false;
+                        break;
+                    }
+                }
+            }
+            if (areRowsHavingUniqueRanks) {
+                final int rankCount = board.countRank(card.rank);
+                if (rankCount <= 0) {
+                    final List<RowCol> rows = board.findRows(r -> r.countRanks() <= 1 && r.numberOfCards() <= 2);
+                    if (!rows.isEmpty()) {
+
+                    }
+                } else {
+                    final RowCol targetRow = board.findFirstRow(r -> r.hasRank(card.rank));
+
+                }
+            }
+        }
+        /*
         final int rankCount = board.countRank(card.rank);
         if (rankCount > 0) {
             final RowCol targetRow = board.findFirstRow(r -> r.countRank(card.rank) == rankCount);
@@ -213,7 +244,7 @@ final class Strategy {
                     return;
                 }
             }
-        }
+        }*/
         qualifyCandidates(card);
     }
 
