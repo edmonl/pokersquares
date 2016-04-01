@@ -22,7 +22,6 @@ final class CellCandidateEvaluator implements Callable<Integer> {
     private Card card;
     private List<CellCandidate> candidates;
     private List<Card> cards;
-    private int targetShuffles;
     private long workerDeadline;
     private int shuffles;
     private final CellCandidate[] candidateTable = new CellCandidate[CellCandidate.MAX_NUMBER];
@@ -50,7 +49,6 @@ final class CellCandidateEvaluator implements Callable<Integer> {
         card = null;
         candidates = null;
         cards = null;
-        targetShuffles = 0;
         workerDeadline = 0;
         shuffles = 0;
         Arrays.fill(candidateTable, null);
@@ -78,8 +76,7 @@ final class CellCandidateEvaluator implements Callable<Integer> {
     }
 
     public void initWorker(final Board board, final DeckTracker deck,
-        final Card card, final List<CellCandidate> candidates, final List<Card> cards,
-        final int targetShuffles, final long deadline) {
+        final Card card, final List<CellCandidate> candidates, final List<Card> cards, final long deadline) {
         this.board.copyFrom(board);
         this.deck.copyFrom(deck);
         this.card = card;
@@ -89,38 +86,32 @@ final class CellCandidateEvaluator implements Callable<Integer> {
         }
         this.cards = new ArrayList<>(cards);
         workerDeadline = deadline;
-        this.targetShuffles = targetShuffles;
         shuffles = 0;
         stopped = false;
     }
 
-    public void evaluate(final Card card, final List<Card> cards, final long deadline) {
+    public void evaluate(final Card card, final List<Card> cards) {
         Collections.shuffle(cards);
         final List<Card> remainingCards = cards.subList(0, board.numberOfEmptyCells() - 1);
+        deck.deal(card);
         synchronized (this) {
             if (candidates.size() > 1) {
-                deck.deal(card);
-                for (int i = 0; i < candidates.size(); ++i) {
-                    final CellCandidate c = candidates.get(i);
+                for (final CellCandidate c : candidates) {
                     board.putCard(card, c.row, c.col);
                     c.score = finishPlay(remainingCards);
                     board.retractLastPlay();
                 }
-                deck.putBack(card);
                 ++shuffles;
                 finishShuffle();
             }
         }
+        deck.putBack(card);
     }
 
     @Override
     public Integer call() throws Exception {
         do {
-            final long now = System.currentTimeMillis();
-            evaluate(card, cards,
-                shuffles < targetShuffles
-                    ? (workerDeadline - now) / (targetShuffles - shuffles) + now
-                    : workerDeadline);
+            evaluate(card, cards);
         } while (System.currentTimeMillis() < workerDeadline && candidates.size() > 1 && !stopped);
         return shuffles;
     }
@@ -149,12 +140,10 @@ final class CellCandidateEvaluator implements Callable<Integer> {
             synchronized (this) {
                 for (final CellCandidate c : candidates) {
                     final CellCandidate tc = candidateTable[c.id];
-                    if (tc != null) {
-                        tc.totalScore += c.totalScore;
-                        c.totalScore = 0;
-                        tc.quality += c.quality;
-                        c.quality = 0.0;
-                    }
+                    tc.totalScore += c.totalScore;
+                    c.totalScore = 0;
+                    tc.quality += c.quality;
+                    c.quality = 0.0;
                 }
             }
         }
@@ -201,15 +190,15 @@ final class CellCandidateEvaluator implements Callable<Integer> {
     }
 
     private int finishCandidates(final Card card, final List<CellCandidate> candidates, final List<Card> cards) {
+        int maxScore = 0;
         deck.deal(card);
-        for (int i = 0; i < candidates.size(); ++i) {
-            final CellCandidate c = candidates.get(i);
+        for (final CellCandidate c : candidates) {
             board.putCard(card, c.row, c.col);
-            c.score = finishPlay(cards);
+            maxScore = Integer.max(maxScore, finishPlay(cards));
             board.retractLastPlay();
         }
         deck.putBack(card);
-        return Collections.max(candidates, CellCandidate.SCORE_COMPARATOR).score;
+        return maxScore;
     }
 
     private int finishPlay(final List<Card> cards) {

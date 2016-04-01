@@ -91,18 +91,6 @@ public final class Board {
         return NUMBER_OF_CELLS - plays.size();
     }
 
-    public List<Cell> getEmptyCells() {
-        final List<Cell> cells = new ArrayList<>(numberOfEmptyCells());
-        for (final RowCol r : rows) {
-            for (int c = 0; c < SIZE; ++c) {
-                if (r.isEmpty(c)) {
-                    cells.add(new Cell(r.index, c));
-                }
-            }
-        }
-        return cells;
-    }
-
     public int getPokerHandScore() {
         if (numberOfCards() != NUMBER_OF_CELLS) {
             throw new IllegalStateException();

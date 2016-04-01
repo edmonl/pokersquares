@@ -346,20 +346,12 @@ public class PokerSquares {
         int times = 1;
         long seed = System.currentTimeMillis();
         int argn = 0;
-        char opt = '\0';
         boolean interactive = false;
         for (final String arg : args) {
-            if (opt == 'm') {
-                player.minimalShuffles = Integer.parseUnsignedInt(arg);
-                opt = '\0';
-            } else if (arg.equals("-v")) {
+            if (arg.equals("-v")) {
                 player.verbose = true;
             } else if (arg.equals("-s")) {
                 player.parallel = false;
-            } else if (arg.equals("-p")) {
-                player.parallel = true;
-            } else if (arg.equals("-m")) {
-                opt = 'm';
             } else if (arg.equals("-i")) {
                 interactive = true;
             } else if (argn == 0) {

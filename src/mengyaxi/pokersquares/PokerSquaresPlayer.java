@@ -18,7 +18,6 @@ public class PokerSquaresPlayer {
 
     private static final Linear QUOTA = new Linear(2, 1, 15, 0.42);
 
-    public int minimalShuffles = 200;
     public boolean verbose = false;
     public boolean parallel = true;
 
@@ -123,13 +122,7 @@ public class PokerSquaresPlayer {
         candidateEvaluator.resetShuffles();
         candidateEvaluator.setCandidates(candidates);
         do {
-            final int shuffles = candidateEvaluator.getShuffles();
-            final long now = System.currentTimeMillis();
-            candidateEvaluator.evaluate(card, cards,
-                shuffles < minimalShuffles
-                    ? (deadline - now) / (minimalShuffles - shuffles) + now
-                    : deadline
-            );
+            candidateEvaluator.evaluate(card, cards);
         } while (System.currentTimeMillis() < deadline && candidates.size() > 1);
         return candidateEvaluator.getShuffles();
     }
@@ -138,10 +131,9 @@ public class PokerSquaresPlayer {
         if (verbose) {
             System.out.println(String.format("%d workers are working", workers.size()));
         }
-        final int workerTarget = minimalShuffles / workers.size() + 1;
         final List<Future<Integer>> results = new ArrayList<>(workers.size());
         for (final CellCandidateEvaluator worker : workers) {
-            worker.initWorker(board, deckTracker, card, candidates, cards, workerTarget, deadline);
+            worker.initWorker(board, deckTracker, card, candidates, cards, deadline);
             results.add(executor.submit(worker));
         }
         do {
