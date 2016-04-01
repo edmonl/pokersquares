@@ -194,7 +194,7 @@ final class CellCandidateEvaluator implements Callable<Integer> {
                 c.quality /= maxQuality;
             }
             if (candidates.size() > 1) {
-                final int avgTotal = total / candidates.size();
+                final double avgTotal = (double) total / candidates.size();
                 candidates.removeIf(c -> c.quality <= 0.15 && c.totalScore < avgTotal);
             }
         }
