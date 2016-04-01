@@ -98,7 +98,7 @@ final class CellCandidateEvaluator implements Callable<Integer> {
             if (candidates.size() > 1) {
                 for (final CellCandidate c : candidates) {
                     board.putCard(card, c.row, c.col);
-                    c.score = finishPlay(remainingCards);
+                    c.score = finishPlay(remainingCards, 1);
                     board.retractLastPlay();
                 }
                 ++shuffles;
@@ -185,19 +185,19 @@ final class CellCandidateEvaluator implements Callable<Integer> {
         }
     }
 
-    private int finishCandidates(final Card card, final List<CellCandidate> candidates, final List<Card> cards) {
+    private int finishCandidates(final Card card, final List<CellCandidate> candidates, final List<Card> cards, final int depth) {
         int maxScore = 0;
         deck.deal(card);
         for (final CellCandidate c : candidates) {
             board.putCard(card, c.row, c.col);
-            maxScore = Integer.max(maxScore, finishPlay(cards));
+            maxScore = Integer.max(maxScore, finishPlay(cards, depth + 1));
             board.retractLastPlay();
         }
         deck.putBack(card);
         return maxScore;
     }
 
-    private int finishPlay(final List<Card> cards) {
+    private int finishPlay(final List<Card> cards, final int depth) {
         for (int i = 0; i < cards.size(); ++i) {
             final Card c = cards.get(i);
             strategy.play(c);
@@ -216,7 +216,7 @@ final class CellCandidateEvaluator implements Callable<Integer> {
                     board.putCard(c, can.row, can.col);
                     continue;
                 }
-                if (remainingCards >= 7) {
+                if (remainingCards >= 7 && depth > 1) {
                     if (cans.size() > 2) {
                         cans = new ArrayList<>(cans.subList(0, 2));
                     }
@@ -232,7 +232,7 @@ final class CellCandidateEvaluator implements Callable<Integer> {
                     }
                 }
             }
-            final int score = finishCandidates(c, cans, cards.subList(i + 1, cards.size()));
+            final int score = finishCandidates(c, cans, cards.subList(i + 1, cards.size()), depth);
             retract(i);
             return score;
         }
