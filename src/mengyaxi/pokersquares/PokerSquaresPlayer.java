@@ -98,12 +98,11 @@ public class PokerSquaresPlayer {
         deckTracker.deal(card);
         final List<Card> cards = deckTracker.getCards();
         deckTracker.putBack(card);
-        if (parallel && workers.size() > 1 && board.numberOfEmptyCells() > 6) {
+        if (parallel && workers.size() > 1 && board.numberOfEmptyCells() > 5) {
             shuffles = multiThreadMonteCarlo(card, cards, candidates, deadline);
         } else {
             shuffles = singleThreadMonteCarlo(card, cards, candidates, deadline);
         }
-        candidates.removeIf(c -> c == null);
         for (final CellCandidate c : candidates) {
             c.averageScore = (double) c.totalScore / shuffles;
         }
