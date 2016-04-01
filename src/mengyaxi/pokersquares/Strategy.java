@@ -13,7 +13,7 @@ import mengyaxi.pokersquares.util.Pokers;
 final class Strategy {
 
     public boolean verbose = false;
-    public int candidatesLimit = 6;
+    public int candidatesLimit = 7;
     public double maxQualityDifference = 10.0;
 
     private final List<CellCandidate> candidates = new ArrayList<>(candidatesLimit);
@@ -56,7 +56,7 @@ final class Strategy {
             }
             final RowCol targetRow = board.findFirstEmptyRow();
             final RowCol col = board.getCol(card.suit);
-            if (col.numberOfCards() < 4
+            if (col.numberOfCards() < 3
                 || !col.hasStraightPotential()
                 || col.hasStraightPotential(card)) {
                 candidates.add(new CellCandidate(targetRow.index, col.index));
