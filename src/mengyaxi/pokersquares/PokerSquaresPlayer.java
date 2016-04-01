@@ -102,16 +102,13 @@ public class PokerSquaresPlayer {
         } else {
             shuffles = singleThreadMonteCarlo(card, cards, candidates, deadline);
         }
-        for (final CellCandidate c : candidates) {
-            c.averageScore = (double) c.totalScore / shuffles;
-        }
-        final CellCandidate winner = Collections.max(candidates, CellCandidate.AVERAGE_SCORE_COMPARATOR);
+        final CellCandidate winner = Collections.max(candidates, CellCandidate.TOTAL_SCORE_COMPARATOR);
         if (verbose) {
             System.out.println(String.format("%d shuffles completed within %.2f seconds",
                 shuffles, (System.currentTimeMillis() - startMillis) / 1000.0));
             System.out.print(candidates.size() + " candidates left:");
             candidates.stream().forEach((c) -> {
-                System.out.print(String.format(" (%d,%d: q=%.2f, s=%.2f)", c.row + 1, c.col + 1, c.quality, c.averageScore));
+                System.out.print(String.format(" (%d,%d: q=%.2f, s=%.2f)", c.row + 1, c.col + 1, c.quality, (double) c.totalScore / shuffles));
             });
             System.out.println();
         }
