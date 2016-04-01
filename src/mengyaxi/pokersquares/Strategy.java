@@ -16,7 +16,7 @@ final class Strategy {
     public int candidatesLimit = 6;
     public double maxQualityDifference = 10.0;
 
-    private final List<CellCandidate> candidates = new ArrayList<>();
+    private final List<CellCandidate> candidates = new ArrayList<>(candidatesLimit);
     private final Board board;
     private final DeckTracker deckTracker;
 
