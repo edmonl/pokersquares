@@ -20,7 +20,7 @@ public final class MengYaXiPlayer extends mengyaxi.pokersquares.PokerSquaresPlay
     public static void main(final String[] args) {
         final MengYaXiPlayer player = new MengYaXiPlayer();
 
-        int times = 1;
+        int numGames = 1;
         long seed = System.currentTimeMillis();
         int argn = 0;
         boolean interactive = false;
@@ -32,7 +32,7 @@ public final class MengYaXiPlayer extends mengyaxi.pokersquares.PokerSquaresPlay
             } else if (arg.equals("-i")) {
                 interactive = true;
             } else if (argn == 0) {
-                times = Integer.parseUnsignedInt(arg);
+                numGames = Integer.parseUnsignedInt(arg);
                 ++argn;
             } else {
                 seed = Long.parseUnsignedLong(arg);
@@ -45,7 +45,10 @@ public final class MengYaXiPlayer extends mengyaxi.pokersquares.PokerSquaresPlay
             //game.setSeed(times + seed);
             game.play(new Scanner(System.in));
         } else {
-            game.playSequence(times, seed, player.verbose);
+            if (!player.verbose) {
+                System.out.println(String.format("%d games starting at seed %d", numGames, seed));
+            }
+            game.playSequence(numGames, seed, player.verbose);
         }
     }
 }

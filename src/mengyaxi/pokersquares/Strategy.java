@@ -181,14 +181,7 @@ final class Strategy {
                             qualifyCandidates(card);
                             return;
                         }
-                        int i = targetCol.findFirstEmptyPosition();
-                        candidates.add(new CellCandidate(i, targetCol.index));
-                        for (++i; i < RowCol.SIZE; ++i) {
-                            if (targetCol.isEmpty(i)) {
-                                candidates.add(new CellCandidate(i, targetCol.index));
-                            }
-                        }
-                        rows = board.findRows(r -> r.countRanks() == 1);
+                        rows = board.findRows(r -> r.countRanks() <= 1);
                         if (!rows.isEmpty()) {
                             for (final RowCol r : rows) {
                                 for (final RowCol c : cols) {
@@ -198,15 +191,30 @@ final class Strategy {
                                 }
                             }
                         }
+                        if (!candidates.isEmpty()) {
+                            int i = targetCol.findFirstEmptyPosition();
+                            candidates.add(new CellCandidate(i, targetCol.index));
+                            for (++i; i < RowCol.SIZE; ++i) {
+                                if (targetCol.isEmpty(i)) {
+                                    candidates.add(new CellCandidate(i, targetCol.index));
+                                }
+                            }
+                        }
                         qualifyCandidates(card);
                         return;
                     }
+                    boolean anyGood = false;
                     for (final RowCol c : cols) {
                         for (int i = 0; i < RowCol.SIZE; ++i) {
                             if (c.isEmpty(i)) {
+                                final RowCol r = board.getRow(i);
+                                anyGood = anyGood || r.countRanks() <= 1;
                                 candidates.add(new CellCandidate(i, c.index));
                             }
                         }
+                    }
+                    if (!anyGood) {
+                        candidates.clear();
                     }
                     qualifyCandidates(card);
                     return;
