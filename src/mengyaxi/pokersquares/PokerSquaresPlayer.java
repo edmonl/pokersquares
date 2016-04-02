@@ -66,7 +66,7 @@ public class PokerSquaresPlayer {
                 });
                 System.out.println();
             }
-            final int contingency = 50 * board.numberOfEmptyCells() - 90;
+            final int contingency = 30 * board.numberOfEmptyCells() - 55;
             strategy.verbose = false;
             if (millisRemaining < contingency) {
                 if (verbose) {
