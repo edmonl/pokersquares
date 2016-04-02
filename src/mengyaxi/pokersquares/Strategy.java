@@ -111,6 +111,7 @@ final class Strategy {
                     }
                     if (targetRow.countRank(card.rank) > 1) {
                         boolean hasEmptyColumn = false;
+                        boolean anyGood = false;
                         for (int i = 0; i < RowCol.SIZE; ++i) {
                             if (targetRow.isEmpty(i)) {
                                 final RowCol col = board.getCol(i);
@@ -118,8 +119,12 @@ final class Strategy {
                                     continue;
                                 }
                                 hasEmptyColumn = hasEmptyColumn || col.isEmpty();
+                                anyGood = anyGood || !col.hasFlushPotential() && (col.numberOfCards() <= 2 || !col.hasStraightPotential());
                                 candidates.add(new CellCandidate(targetRow.index, i));
                             }
+                        }
+                        if (!anyGood) {
+                            candidates.clear();
                         }
                         qualifyCandidates(card);
                         return;
